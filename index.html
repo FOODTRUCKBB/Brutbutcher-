@@ -19,11 +19,18 @@
     padding-bottom: 80px;
   }
   header {
+    position: relative;
     padding: calc(env(safe-area-inset-top) + 16px) 16px 12px;
     text-align: center;
     background: repeating-linear-gradient(90deg, #14171c 0 8px, #1b1f26 8px 10px);
     border-bottom: 1px solid #2a2f38;
   }
+  .lock {
+    position: absolute; top: calc(env(safe-area-inset-top) + 8px); right: 10px;
+    background: none; border: none; font-size: 22px; padding: 6px 8px;
+    cursor: pointer; opacity: .6; color: #f2ede4;
+  }
+  .lock.on { opacity: 1; }
   .brand { border-top: 4px solid #f2ede4; border-bottom: 4px solid #f2ede4; padding: 10px 0 14px; }
   .brand h1 { margin: 0; font-size: 38px; letter-spacing: 10px; font-weight: 700; }
   .flag { display: flex; justify-content: center; margin-top: 6px; }
@@ -31,6 +38,11 @@
   .flag .b { background: #2a4d9b; } .flag .w { background: #f2ede4; } .flag .r { background: #d63a2f; }
   .tagline { margin: 12px 0 4px; font-size: 13px; letter-spacing: 7px; color: #8b919b; }
   .sub { font-size: 18px; letter-spacing: 3px; font-weight: 500; }
+  .edit-banner {
+    display: none; background: #d63a2f; color: #fff; text-align: center;
+    padding: 6px; font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+  }
+  body.editing .edit-banner { display: block; }
 
   .tabs {
     display: flex; gap: 8px; overflow-x: auto; padding: 12px 16px;
@@ -92,6 +104,14 @@
   .btn.ghost { background: transparent; color: #f2ede4; border: 2px solid #f2ede4; }
   .actions { display: flex; gap: 8px; margin-top: 24px; flex-wrap: wrap; }
 
+  /* Éléments visibles uniquement en mode édition */
+  .edit-only { display: none !important; }
+  body.editing .edit-only { display: revert !important; }
+  body.editing .tab.add.edit-only { display: inline-block !important; }
+  body.editing .del.edit-only { display: inline-block !important; }
+  body.editing .add-row.edit-only { display: flex !important; }
+  body.editing .actions.edit-only { display: flex !important; }
+
   /* Caisse */
   .caisse-row {
     display: flex; align-items: center; gap: 12px; padding: 10px 4px;
@@ -129,6 +149,7 @@
 <body>
 
 <header>
+  <button class="lock" id="lockBtn" aria-label="Mode édition">🔒</button>
   <div class="brand">
     <h1>BRUT BUTCHER</h1>
     <div class="flag"><span class="b"></span><span class="w"></span><span class="r"></span></div>
@@ -136,13 +157,14 @@
   <div class="tagline">LE FAST-FOOD DU BOUCHER</div>
   <div class="sub">FOODTRUCK</div>
 </header>
+<div class="edit-banner">Mode édition</div>
 
 <div class="tabs" id="tabs"></div>
 
 <main>
   <div id="alert"></div>
   <div id="content"></div>
-  <div class="actions" id="actions">
+  <div class="actions edit-only" id="actions">
     <button class="btn ghost" id="addCat">+ Catégorie</button>
     <button class="btn ghost" id="resetTab">Tout décocher</button>
     <button class="btn ghost" id="delTab">Supprimer l'onglet</button>
@@ -154,6 +176,8 @@
 <script>
 const KEY = 'brutbutcher_checklist_v7';
 const CAISSE_NAME = 'Caisse';
+const PIN = '0109';
+let editing = false;
 
 const defaultData = {
   active: 0,
@@ -265,6 +289,29 @@ function caisseTotal() {
   return Math.round(tot * 100) / 100;
 }
 
+/* Verrouillage */
+function updateLockUI() {
+  document.body.classList.toggle('editing', editing);
+  const lb = document.getElementById('lockBtn');
+  lb.textContent = editing ? '🔓' : '🔒';
+  lb.classList.toggle('on', editing);
+}
+document.getElementById('lockBtn').onclick = () => {
+  if (editing) {
+    editing = false;
+    updateLockUI(); render();
+  } else {
+    const code = prompt('Code pour passer en mode édition :');
+    if (code === null) return;
+    if (code === PIN) {
+      editing = true;
+      updateLockUI(); render();
+    } else {
+      alert('Code incorrect.');
+    }
+  }
+};
+
 function renderTabs() {
   const tabsEl = document.getElementById('tabs');
   tabsEl.innerHTML = '';
@@ -274,21 +321,24 @@ function renderTabs() {
     b.textContent = t.name;
     b.onclick = () => { data.active = i; save(); render(); };
     b.ondblclick = () => {
+      if (!editing) return;
       const n = prompt("Renommer l'onglet :", t.name);
       if (n && n.trim()) { t.name = n.trim(); save(); render(); }
     };
     tabsEl.appendChild(b);
   });
-  const add = document.createElement('button');
-  add.className = 'tab add'; add.textContent = '+';
-  add.onclick = () => {
-    const n = prompt('Nom du nouvel onglet :');
-    if (n && n.trim()) {
-      data.tabs.push({ name: n.trim(), cats: [] });
-      data.active = data.tabs.length - 1; save(); render();
-    }
-  };
-  tabsEl.appendChild(add);
+  if (editing) {
+    const add = document.createElement('button');
+    add.className = 'tab add'; add.textContent = '+';
+    add.onclick = () => {
+      const n = prompt('Nom du nouvel onglet :');
+      if (n && n.trim()) {
+        data.tabs.push({ name: n.trim(), cats: [] });
+        data.active = data.tabs.length - 1; save(); render();
+      }
+    };
+    tabsEl.appendChild(add);
+  }
 }
 
 function renderCaisse() {
@@ -384,7 +434,8 @@ function render() {
   const content = document.getElementById('content');
   content.innerHTML = '';
   if (tab.cats.length === 0) {
-    content.innerHTML = '<p style="color:#8b919b;text-align:center;margin-top:30px">Aucune catégorie. Appuyez sur « + Catégorie ».</p>';
+    content.innerHTML = '<p style="color:#8b919b;text-align:center;margin-top:30px">' +
+      (editing ? 'Aucune catégorie. Appuyez sur « + Catégorie ».' : 'Aucune catégorie.') + '</p>';
   }
   tab.cats.forEach((cat, ci) => {
     const done = cat.items.filter(i => i.c).length;
@@ -396,13 +447,13 @@ function render() {
       const row = document.createElement('div');
       row.className = 'item' + (it.c ? ' done' : '');
       row.innerHTML = '<label><input type="checkbox"' + (it.c ? ' checked' : '') + '><span>' + esc(it.t) + '</span></label>' +
-        '<button class="del" aria-label="Supprimer">×</button>';
+        '<button class="del edit-only" aria-label="Supprimer">×</button>';
       row.querySelector('input').onchange = e => { it.c = e.target.checked; save(); render(); };
       row.querySelector('.del').onclick = () => { cat.items.splice(ii, 1); save(); render(); };
       div.appendChild(row);
     });
     const form = document.createElement('div');
-    form.className = 'add-row';
+    form.className = 'add-row edit-only';
     form.innerHTML = '<input type="text" placeholder="Ajouter une ligne…"><button class="btn">OK</button>';
     const inp = form.querySelector('input');
     const addItem = () => {
@@ -433,6 +484,7 @@ document.getElementById('delTab').onclick = () => {
   }
 };
 
+updateLockUI();
 render();
 </script>
 </body>
