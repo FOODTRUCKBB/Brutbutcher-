@@ -137,17 +137,9 @@
   .cols { display: flex; gap: 10px; }
   .cols > div { flex: 1; }
   .cols .col-title { text-align: center; font-size: 15px; letter-spacing: 3px; margin-bottom: 4px; color: #8b919b; }
-  .hist-row { display: flex; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid #242932; font-size: 16px; }
+  .hist-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid #242932; font-size: 16px; }
   .hist-row small { color: #8b919b; }
 
-  .suivi-section { margin: 0 0 26px; }
-  .suivi-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; margin: 10px 0 14px; }
-  .suivi-form label { display: block; color: #aeb3bc; font-size: 13px; letter-spacing: 1px; }
-  .suivi-form input { display: block; width: 100%; margin-top: 4px; background: #1b1f26; border: 1px solid #2a2f38; color: #f2ede4; padding: 10px; font: 16px 'Oswald', sans-serif; }
-  .suivi-form .btn { grid-column: 1 / -1; justify-self: start; }
-  .suivi-entry { padding: 10px 4px; border-bottom: 1px solid #2a2f38; line-height: 1.7; }
-  .suivi-entry strong { letter-spacing: 1px; }
-  .suivi-entry .del { float: right; }
   .print-only { display: none; }
   @media print {
     body { background: #fff; color: #000; padding: 0; font-family: Arial, sans-serif; }
@@ -195,8 +187,6 @@ const KEY = 'brutbutcher_checklist_v8';
 const PIN = '0109';
 const INV_KEY = 'brutbutcher_inventaire_v1';
 const CA_KEY = 'brutbutcher_ca_v1';
-const SUIVI_KEY = 'brutbutcher_suivi_v1';
-const SUIVI_NAME = 'Suivi Huile & Frigos';
 const CAISSE_NAME = 'Caisse';
 const INVENTAIRE_NAME = 'Inventaire';
 const CA_NAME = 'CA';
@@ -269,7 +259,7 @@ const defaultData = {
         { t: 'Poubelle 2', c: false },
         { t: 'Sac poubelle', c: false },
         { t: 'Balai + pelle', c: false },
-        { t: 'Rouleau d\'essuie-tout x4', c: false }
+        { t: "Rouleau d'essuie-tout x4", c: false }
       ]}
     ]},
     { name: 'Formulaire', cats: [
@@ -280,13 +270,10 @@ const defaultData = {
       ]},
       { name: 'Open caisse', items: [
         { t: 'Comptage billet + pièce', c: false },
-        { t: 'Mise en route des deux TPE', c: false },
-        { t: 'Rouleau TPE', c: false },
-        { t: 'Chargeur TPE', c: false }
+        { t: 'Mise en route des deux TPE', c: false }
       ]}
     ]},
     { name: CAISSE_NAME, cats: [], caisse: true },
-    { name: SUIVI_NAME, cats: [], suivi: true },
     { name: CA_NAME, cats: [], ca: true }
   ]
 };
@@ -321,7 +308,6 @@ try { data = JSON.parse(localStorage.getItem(KEY)) || defaultData; }
 catch (e) { data = defaultData; }
 if (!data.caisseQty) data.caisseQty = {};
 
-/* Données inventaire et CA, séparées pour ne pas être effacées par "Réinitialiser" */
 let inv;
 try { inv = JSON.parse(localStorage.getItem(INV_KEY)) || {}; } catch (e) { inv = {}; }
 if (!inv.debut) inv.debut = {};
@@ -332,47 +318,12 @@ if (!inv.evenement) inv.evenement = { nom: '', date: '' };
 let caHist;
 try { caHist = JSON.parse(localStorage.getItem(CA_KEY)) || []; } catch (e) { caHist = []; }
 
-/* Suivi opérationnel séparé : non affecté par la réinitialisation checklist */
-let suivi;
-try { suivi = JSON.parse(localStorage.getItem(SUIVI_KEY)) || {}; } catch (e) { suivi = {}; }
-if (!Array.isArray(suivi.vidanges)) suivi.vidanges = [];
-if (!Array.isArray(suivi.polarite)) suivi.polarite = [];
-if (!Array.isArray(suivi.frigos)) suivi.frigos = [];
-if (!Array.isArray(suivi.hottes)) suivi.hottes = [];
-function saveSuivi() { localStorage.setItem(SUIVI_KEY, JSON.stringify(suivi)); }
-
-// Complète une checklist déjà enregistrée sans remplacer les données existantes.
-function ensureChecklistItem(tabName, categoryName, label) {
-  const tab = data.tabs.find(t => t.name === tabName);
-  if (!tab) return;
-  let cat = tab.cats.find(c => c.name === categoryName);
-  if (!cat) { cat = { name: categoryName, items: [] }; tab.cats.push(cat); }
-  if (!cat.items.some(i => i.t === label)) cat.items.push({ t: label, c: false });
-}
-ensureChecklistItem('Équipement', 'Friteuse', 'Huile 10 kilos');
-ensureChecklistItem('Formulaire', 'Open caisse', 'Rouleau TPE');
-ensureChecklistItem('Formulaire', 'Open caisse', 'Chargeur TPE');
-if (!data.tabs.some(t => t.suivi || t.name === SUIVI_NAME)) {
-  const caIndex = data.tabs.findIndex(t => t.ca || t.name === CA_NAME);
-  data.tabs.splice(caIndex < 0 ? data.tabs.length : caIndex, 0, { name: SUIVI_NAME, cats: [], suivi: true });
-  save();
-} else {
-  const suiviTab = data.tabs.find(t => t.suivi || t.name === SUIVI_NAME);
-  suiviTab.suivi = true; suiviTab.name = SUIVI_NAME;
-  const caIndex = data.tabs.findIndex(t => t.ca || t.name === CA_NAME);
-  const suiviIndex = data.tabs.indexOf(suiviTab);
-  if (caIndex >= 0 && suiviIndex > caIndex) {
-    data.tabs.splice(suiviIndex, 1); data.tabs.splice(caIndex, 0, suiviTab);
-  }
-  save();
-}
-
 function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
 function saveInv() { localStorage.setItem(INV_KEY, JSON.stringify(inv)); }
 function saveCA() { localStorage.setItem(CA_KEY, JSON.stringify(caHist)); }
 
 function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": ''' }[c]));
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"' }[c]));
 }
 function eur(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
 function num(x) { return parseFloat(x) || 0; }
@@ -383,7 +334,6 @@ function caisseTotal() {
   return Math.round(tot * 100) / 100;
 }
 
-/* CRA : chiffre d'affaires de la prestation */
 function craTotal() {
   let tot = 0;
   CRA_ITEMS.forEach(c => { tot += num(inv.cra[c.id]) * c.prix; });
@@ -473,8 +423,8 @@ function renderInventaire() {
     row.className = 'inv-row';
     row.innerHTML =
       '<span class="lbl">' + esc(it.label) + (it.unit ? ' (' + it.unit + ')' : '') + '</span>' +
-      '<input type="number" inputmode="decimal" step="' + it.step + '" min="0" placeholder="0" value="' + (inv.debut[it.id] ?? '') + '">' +
-      '<input type="number" inputmode="decimal" step="' + it.step + '" min="0" placeholder="0" value="' + (inv.fin[it.id] ?? '') + '">';
+      '<input type="number" inputmode="decimal" step="' + it.step + '" min="0" placeholder="0" value="' + esc(inv.debut[it.id] ?? '') + '">' +
+      '<input type="number" inputmode="decimal" step="' + it.step + '" min="0" placeholder="0" value="' + esc(inv.fin[it.id] ?? '') + '">';
     const [dInp, fInp] = row.querySelectorAll('input');
     dInp.oninput = () => { inv.debut[it.id] = dInp.value; saveInv(); };
     fInp.oninput = () => { inv.fin[it.id] = fInp.value; saveInv(); };
@@ -493,7 +443,7 @@ function renderInventaire() {
     CRA_ITEMS.forEach(c => {
       const q = inv.cra[c.id] ?? '';
       html += '<div class="caisse-row"><span class="lbl">' + esc(c.label) + ' (' + c.prix + ' €)</span>' +
-        '<input type="number" inputmode="numeric" min="0" placeholder="0" data-cra="' + c.id + '" value="' + q + '">' +
+        '<input type="number" inputmode="numeric" min="0" placeholder="0" data-cra="' + c.id + '" value="' + esc(q) + '">' +
         '<span class="sub-total">' + eur(num(q) * c.prix) + '</span></div>';
     });
     html += '<div class="total-box"><span>CA</span><strong id="caVal">' + eur(craTotal()) + '</strong></div>';
@@ -524,9 +474,7 @@ function renderInventaire() {
 }
 
 function restant(id) {
-  const d = num(inv.debut[id]);
-  const f = num(inv.fin[id]);
-  return d - f;
+  return num(inv.debut[id]) - num(inv.fin[id]);
 }
 
 function generateInventairePDF() {
@@ -542,9 +490,9 @@ function generateInventairePDF() {
     const f = inv.fin[it.id] ?? '';
     const r = restant(it.id);
     rows += '<tr><td>' + esc(it.label) + (it.unit ? ' (' + it.unit + ')' : '') + '</td>' +
-      '<td class="r">' + (d === '' ? '-' : d) + '</td>' +
-      '<td class="r">' + (f === '' ? '-' : f) + '</td>' +
-      '<td class="r">' + (d === '' || f === '' ? '-' : r.toString().replace('.', ',')) + '</td></tr>';
+      '<td class="r">' + (d === '' ? '-' : esc(d)) + '</td>' +
+      '<td class="r">' + (f === '' ? '-' : esc(f)) + '</td>' +
+      '<td class="r">' + (d === '' || f === '' ? '-' : String(r).replace('.', ',')) + '</td></tr>';
   });
 
   let craRows = '';
@@ -566,7 +514,6 @@ function generateInventairePDF() {
   window.print();
 }
 
-/* Enregistre le CA de l'événement dans l'historique */
 function saveCAEntry() {
   if (!inv.evenement.nom && !inv.evenement.date) {
     alert("Renseignez le nom et la date de l'événement d'abord.");
@@ -581,7 +528,6 @@ function saveCAEntry() {
   alert('CA enregistré : ' + eur(craTotal()));
 }
 
-/* Remet l'inventaire fin en début, décoche la checklist, garde le CA */
 function resetService() {
   if (!confirm("Réinitialiser le service ? La checklist sera décochée, l'inventaire fin deviendra l'inventaire début et le CRA sera vidé.")) return;
   const newDebut = {};
@@ -622,14 +568,14 @@ function renderCA() {
     '<div class="caisse-row"><span class="lbl">Ce mois</span><strong>' + eur(mois) + '</strong></div>' +
     '<div class="caisse-row"><span class="lbl">Cette année</span><strong>' + eur(annee) + '</strong></div>';
 
-  // Historique groupé par année puis mois
+  // Index d'origine de chaque entrée, pour la suppression
   const groups = {};
-  caHist.forEach(e => {
+  caHist.forEach((e, idx) => {
     const y = e.date.slice(0, 4);
     const m = e.date.slice(0, 7);
     groups[y] = groups[y] || {};
     groups[y][m] = groups[y][m] || [];
-    groups[y][m].push(e);
+    groups[y][m].push({ ...e, idx });
   });
   const years = Object.keys(groups).sort().reverse();
   if (years.length === 0) {
@@ -644,7 +590,20 @@ function renderCA() {
       content.innerHTML += '<div class="cat-title"><h3>' + esc(label) + '</h3><span class="count">' + eur(mTot) + '</span></div>';
       groups[y][m].slice().reverse().forEach(e => {
         const d = new Date(e.date).toLocaleDateString('fr-FR');
-        content.innerHTML += '<div class="hist-row"><span>' + esc(e.nom) + ' <small>' + d + '</small></span><strong>' + eur(num(e.ca)) + '</strong></div>';
+        const row = document.createElement('div');
+        row.className = 'hist-row';
+        row.innerHTML =
+          '<span>' + esc(e.nom) + ' <small>' + d + '</small></span>' +
+          '<span><strong>' + eur(num(e.ca)) + '</strong> ' +
+          '<button class="del edit-only" aria-label="Supprimer">×</button></span>';
+        row.querySelector('.del').onclick = () => {
+          if (confirm('Supprimer « ' + e.nom + ' » (' + eur(num(e.ca)) + ') de l\'historique ?')) {
+            caHist.splice(e.idx, 1);
+            saveCA();
+            render();
+          }
+        };
+        content.appendChild(row);
       });
     });
   });
@@ -719,122 +678,6 @@ function generateCaissePDF() {
 }
 
 /* ===== Rendu général ===== */
-function htmlEscape(value) {
-  return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
-    '&': '&', '<': '<', '>': '>', '"': '"', "'": '''
-  })[ch]);
-}
-function displayDate(value) {
-  if (!value) return '—';
-  const parts = value.split('-');
-  return parts.length === 3 ? parts[2] + '/' + parts[1] + '/' + parts[0] : value;
-}
-function dateToday() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
-function sortedEntries(entries) {
-  return entries.map((entry, index) => ({ entry, index })).sort((a, b) =>
-    String(b.entry.date || '').localeCompare(String(a.entry.date || '')) || b.index - a.index
-  ).map(x => x.entry);
-}
-function renderSuivi() {
-  document.getElementById('alert').innerHTML = '';
-  document.getElementById('actions').style.display = 'none';
-  const content = document.getElementById('content');
-  const escHtml = htmlEscape;
-  const section = (title, id, fields, entries, format) => {
-    let html = '<section class="suivi-section"><h2 class="section-title">' + title + '</h2>' +
-      '<form class="suivi-form" id="' + id + '">';
-    fields.forEach(f => { html += '<label>' + f.label + '<input name="' + f.name + '" type="' + (f.type || 'text') + '"' +
-      (f.step ? ' step="' + f.step + '"' : '') + (f.min != null ? ' min="' + f.min + '"' : '') +
-      (f.required ? ' required' : '') + (f.type === 'date' && f.today ? ' value="' + dateToday() + '"' : '') +
-      ' placeholder="' + (f.placeholder || '') + '"></label>'; });
-    html += '<button class="btn" type="submit">Ajouter à l’historique</button></form>';
-    const ordered = sortedEntries(entries);
-    html += ordered.length ? ordered.map((entry, index) => '<div class="suivi-entry">' + format(entry) +
-      (editing ? '<button class="del edit-only" data-del="' + index + '" aria-label="Supprimer cette ligne">×</button>' : '') + '</div>').join('') :
-      '<p style="color:#8b919b">Aucun historique enregistré.</p>';
-    html += '</section>';
-    return html;
-  };
-  content.innerHTML =
-    section('Vidange huile', 'formVidange', [
-      { name: 'date', label: 'Date de vidange', type: 'date', today: true, required: true },
-      { name: 'cuve1', label: 'Cuve 1', placeholder: 'Note / statut' },
-      { name: 'cuve2', label: 'Cuve 2', placeholder: 'Note / statut' },
-      { name: 'nettoyageDate', label: 'Date du nettoyage', type: 'date' }
-    ], suivi.vidanges, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Cuve 1 : ' + escHtml(e.cuve1 || '—') +
-      ' · Cuve 2 : ' + escHtml(e.cuve2 || '—') + ' · Nettoyage : ' + escHtml(displayDate(e.nettoyageDate))) +
-    section('Polarité & degré d’huile', 'formPolarite', [
-      { name: 'date', label: 'Date', type: 'date', today: true, required: true },
-      { name: 'polarite1', label: 'Cuve 1 — polarité', placeholder: 'Polarité' },
-      { name: 'degre1', label: 'Cuve 1 — degré', type: 'number', step: 'any', placeholder: 'Degré' },
-      { name: 'polarite2', label: 'Cuve 2 — polarité', placeholder: 'Polarité' },
-      { name: 'degre2', label: 'Cuve 2 — degré', type: 'number', step: 'any', placeholder: 'Degré' }
-			        ], suivi.polarite, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Cuve 1 : polarité ' + escHtml(e.polarite1 || '—') +
-      ', degré ' + escHtml(e.degre1 || '—') + ' · Cuve 2 : polarité ' + escHtml(e.polarite2 || '—') + ', degré ' + escHtml(e.degre2 || '—')) +
-    section('Températures frigos', 'formFrigos', [
-      { name: 'date', label: 'Date', type: 'date', today: true, required: true },
-      { name: 'frigo1', label: 'Frigo 1 — température', type: 'number', step: 'any', placeholder: '°C' },
-      { name: 'frigo2', label: 'Frigo 2 — température', type: 'number', step: 'any', placeholder: '°C' }
-    ], suivi.frigos, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Frigo 1 : ' + escHtml(e.frigo1 || '—') + ' °C · Frigo 2 : ' + escHtml(e.frigo2 || '—') + ' °C') +
-    section('Nettoyage des hottes', 'formHottes', [
-      { name: 'date', label: 'Date du nettoyage', type: 'date', today: true, required: true }
-    ], suivi.hottes, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong>') +
-    '<div class="actions"><button class="btn ghost" id="generateSuiviPDF">Générer PDF</button></div>';
-
-  const bindForm = (id, key, names) => {
-    const form = document.getElementById(id);
-    form.onsubmit = event => {
-      event.preventDefault();
-      const entry = {};
-      names.forEach(name => { entry[name] = form.elements[name].value.trim(); });
-      if (!entry.date) return;
-      suivi[key].unshift(entry);
-      saveSuivi(); renderSuivi();
-    };
-  };
-  bindForm('formVidange', 'vidanges', ['date', 'cuve1', 'cuve2', 'nettoyageDate']);
-  bindForm('formPolarite', 'polarite', ['date', 'polarite1', 'degre1', 'polarite2', 'degre2']);
-  bindForm('formFrigos', 'frigos', ['date', 'frigo1', 'frigo2']);
-  bindForm('formHottes', 'hottes', ['date']);
-  content.querySelectorAll('[data-del]').forEach(button => {
-    button.onclick = () => {
-      if (!editing) return;
-      const container = button.closest('.suivi-section');
-      const sectionIndex = Array.from(content.querySelectorAll('.suivi-section')).indexOf(container);
-      const key = ['vidanges', 'polarite', 'frigos', 'hottes'][sectionIndex];
-      const ordered = sortedEntries(suivi[key]);
-      const rowIndex = Number(button.dataset.del);
-      const target = ordered[rowIndex];
-      suivi[key].splice(suivi[key].indexOf(target), 1);
-      saveSuivi(); renderSuivi();
-    };
-  });
-  document.getElementById('generateSuiviPDF').onclick = generateSuiviPDF;
-}
-function generateSuiviPDF() {
-  const table = (title, headers, rows) => '<h2>' + htmlEscape(title) + '</h2><table><thead><tr>' +
-    headers.map(h => '<th>' + htmlEscape(h) + '</th>').join('') + '</tr></thead><tbody>' +
-    (rows.length ? rows.map(row => '<tr>' + row.map(v => '<td>' + htmlEscape(v || '—') + '</td>').join('') + '</tr>').join('') :
-      '<tr><td colspan="' + headers.length + '">Aucune donnée enregistrée.</td></tr>') + '</tbody></table>';
-  const rowsVidange = sortedEntries(suivi.vidanges).map(e => [displayDate(e.date), e.cuve1, e.cuve2, displayDate(e.nettoyageDate)]);
-  const rowsPolarite = sortedEntries(suivi.polarite).map(e => [displayDate(e.date), e.polarite1, e.degre1, e.polarite2, e.degre2]);
-  const rowsFrigos = sortedEntries(suivi.frigos).map(e => [displayDate(e.date), e.frigo1, e.frigo2]);
-  const rowsHottes = sortedEntries(suivi.hottes).map(e => [displayDate(e.date)]);
-  const w = window.open('', '_blank');
-  if (!w) { alert('Autorisez les fenêtres pop-up pour générer le PDF.'); return; }
-  w.document.open();
-  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Suivi Huile & Frigos</title><style>body{font:14px Arial,sans-serif;margin:24px;color:#111}h1{font-size:22px}h2{font-size:17px;margin:22px 0 8px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th,td{border:1px solid #555;padding:7px;text-align:left}th{background:#eee}@media print{body{margin:12mm}}</style></head><body><h1>Suivi Huile & Frigos</h1>' +
-    table('Vidange huile', ['Date', 'Cuve 1', 'Cuve 2', 'Nettoyage — date'], rowsVidange) +
-    table('Polarité & degré d’huile', ['Date', 'Cuve 1 — polarité', 'Cuve 1 — degré', 'Cuve 2 — polarité', 'Cuve 2 — degré'], rowsPolarite) +
-    table('Températures frigos', ['Date', 'Frigo 1 (°C)', 'Frigo 2 (°C)'], rowsFrigos) +
-    table('Nettoyage des hottes', ['Date du nettoyage'], rowsHottes) +
-    '<script>window.onload=function(){window.print();};<\/script></body></html>');
-  w.document.close();
-}
-
 function render() {
   if (data.active >= data.tabs.length) data.active = 0;
   const tab = data.tabs[data.active];
@@ -843,7 +686,6 @@ function render() {
   if (tab.caisse) { renderCaisse(); return; }
   if (tab.inventaire) { renderInventaire(); return; }
   if (tab.ca) { renderCA(); return; }
-  if (tab.suivi || tab.name === SUIVI_NAME) { renderSuivi(); return; }
   document.getElementById('actions').style.display = '';
 
   const missing = [];
