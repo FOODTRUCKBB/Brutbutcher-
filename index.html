@@ -140,6 +140,14 @@
   .hist-row { display: flex; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid #242932; font-size: 16px; }
   .hist-row small { color: #8b919b; }
 
+  .suivi-section { margin: 0 0 26px; }
+  .suivi-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; margin: 10px 0 14px; }
+  .suivi-form label { display: block; color: #aeb3bc; font-size: 13px; letter-spacing: 1px; }
+  .suivi-form input { display: block; width: 100%; margin-top: 4px; background: #1b1f26; border: 1px solid #2a2f38; color: #f2ede4; padding: 10px; font: 16px 'Oswald', sans-serif; }
+  .suivi-form .btn { grid-column: 1 / -1; justify-self: start; }
+  .suivi-entry { padding: 10px 4px; border-bottom: 1px solid #2a2f38; line-height: 1.7; }
+  .suivi-entry strong { letter-spacing: 1px; }
+  .suivi-entry .del { float: right; }
   .print-only { display: none; }
   @media print {
     body { background: #fff; color: #000; padding: 0; font-family: Arial, sans-serif; }
@@ -187,6 +195,8 @@ const KEY = 'brutbutcher_checklist_v8';
 const PIN = '0109';
 const INV_KEY = 'brutbutcher_inventaire_v1';
 const CA_KEY = 'brutbutcher_ca_v1';
+const SUIVI_KEY = 'brutbutcher_suivi_v1';
+const SUIVI_NAME = 'Suivi Huile & Frigos';
 const CAISSE_NAME = 'Caisse';
 const INVENTAIRE_NAME = 'Inventaire';
 const CA_NAME = 'CA';
@@ -270,10 +280,13 @@ const defaultData = {
       ]},
       { name: 'Open caisse', items: [
         { t: 'Comptage billet + pièce', c: false },
-        { t: 'Mise en route des deux TPE', c: false }
+        { t: 'Mise en route des deux TPE', c: false },
+        { t: 'Rouleau TPE', c: false },
+        { t: 'Chargeur TPE', c: false }
       ]}
     ]},
     { name: CAISSE_NAME, cats: [], caisse: true },
+    { name: SUIVI_NAME, cats: [], suivi: true },
     { name: CA_NAME, cats: [], ca: true }
   ]
 };
@@ -318,6 +331,41 @@ if (!inv.evenement) inv.evenement = { nom: '', date: '' };
 
 let caHist;
 try { caHist = JSON.parse(localStorage.getItem(CA_KEY)) || []; } catch (e) { caHist = []; }
+
+/* Suivi opérationnel séparé : non affecté par la réinitialisation checklist */
+let suivi;
+try { suivi = JSON.parse(localStorage.getItem(SUIVI_KEY)) || {}; } catch (e) { suivi = {}; }
+if (!Array.isArray(suivi.vidanges)) suivi.vidanges = [];
+if (!Array.isArray(suivi.polarite)) suivi.polarite = [];
+if (!Array.isArray(suivi.frigos)) suivi.frigos = [];
+if (!Array.isArray(suivi.hottes)) suivi.hottes = [];
+function saveSuivi() { localStorage.setItem(SUIVI_KEY, JSON.stringify(suivi)); }
+
+// Complète une checklist déjà enregistrée sans remplacer les données existantes.
+function ensureChecklistItem(tabName, categoryName, label) {
+  const tab = data.tabs.find(t => t.name === tabName);
+  if (!tab) return;
+  let cat = tab.cats.find(c => c.name === categoryName);
+  if (!cat) { cat = { name: categoryName, items: [] }; tab.cats.push(cat); }
+  if (!cat.items.some(i => i.t === label)) cat.items.push({ t: label, c: false });
+}
+ensureChecklistItem('Équipement', 'Friteuse', 'Huile 10 kilos');
+ensureChecklistItem('Formulaire', 'Open caisse', 'Rouleau TPE');
+ensureChecklistItem('Formulaire', 'Open caisse', 'Chargeur TPE');
+if (!data.tabs.some(t => t.suivi || t.name === SUIVI_NAME)) {
+  const caIndex = data.tabs.findIndex(t => t.ca || t.name === CA_NAME);
+  data.tabs.splice(caIndex < 0 ? data.tabs.length : caIndex, 0, { name: SUIVI_NAME, cats: [], suivi: true });
+  save();
+} else {
+  const suiviTab = data.tabs.find(t => t.suivi || t.name === SUIVI_NAME);
+  suiviTab.suivi = true; suiviTab.name = SUIVI_NAME;
+  const caIndex = data.tabs.findIndex(t => t.ca || t.name === CA_NAME);
+  const suiviIndex = data.tabs.indexOf(suiviTab);
+  if (caIndex >= 0 && suiviIndex > caIndex) {
+    data.tabs.splice(suiviIndex, 1); data.tabs.splice(caIndex, 0, suiviTab);
+  }
+  save();
+}
 
 function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
 function saveInv() { localStorage.setItem(INV_KEY, JSON.stringify(inv)); }
@@ -671,84 +719,62 @@ function generateCaissePDF() {
 }
 
 /* ===== Rendu général ===== */
-function render() {
-  if (data.active >= data.tabs.length) data.active = 0;
-  const tab = data.tabs[data.active];
-  renderTabs();
-
-  if (tab.caisse) { renderCaisse(); return; }
-  if (tab.inventaire) { renderInventaire(); return; }
-  if (tab.ca) { renderCA(); return; }
-  document.getElementById('actions').style.display = '';
-
-  const missing = [];
-  tab.cats.forEach(cat => cat.items.forEach(it => { if (!it.c) missing.push({ cat: cat.name, t: it.t }); }));
-  const alertEl = document.getElementById('alert');
-  if (tab.cats.length === 0) {
-    alertEl.innerHTML = '';
-  } else if (missing.length === 0) {
-    alertEl.innerHTML = '<div class="alert ok"><h2>Tout est prêt, bon service</h2></div>';
-  } else {
-    alertEl.innerHTML = '<div class="alert"><h2>À régler avant le service (' + missing.length + ')</h2><ul>' +
-      missing.map(m => '<li>' + esc(m.t) + ' <small>— ' + esc(m.cat) + '</small></li>').join('') +
-      '</ul></div>';
-  }
-
-  const content = document.getElementById('content');
-  content.innerHTML = '';
-  if (tab.cats.length === 0) {
-    content.innerHTML = '<p style="color:#8b919b;text-align:center;margin-top:30px">' +
-      (editing ? 'Aucune catégorie. Appuyez sur « + Catégorie ».' : 'Aucune catégorie.') + '</p>';
-  }
-  tab.cats.forEach((cat, ci) => {
-    const done = cat.items.filter(i => i.c).length;
-    const div = document.createElement('div');
-    div.className = 'cat';
-    div.innerHTML =
-      '<div class="cat-title"><h3>' + esc(cat.name) + '</h3><span class="count">' + done + '/' + cat.items.length + '</span></div>';
-    cat.items.forEach((it, ii) => {
-      const row = document.createElement('div');
-      row.className = 'item' + (it.c ? ' done' : '');
-      row.innerHTML = '<label><input type="checkbox"' + (it.c ? ' checked' : '') + '><span>' + esc(it.t) + '</span></label>' +
-        '<button class="del edit-only" aria-label="Supprimer">×</button>';
-      row.querySelector('input').onchange = e => { it.c = e.target.checked; save(); render(); };
-      row.querySelector('.del').onclick = () => { cat.items.splice(ii, 1); save(); render(); };
-      div.appendChild(row);
-    });
-    const form = document.createElement('div');
-    form.className = 'add-row edit-only';
-    form.innerHTML = '<input type="text" placeholder="Ajouter une ligne…"><button class="btn">OK</button>';
-    const inp = form.querySelector('input');
-    const addItem = () => {
-      const v = inp.value.trim();
-      if (v) { cat.items.push({ t: v, c: false }); save(); render(); }
-    };
-    form.querySelector('button').onclick = addItem;
-    inp.onkeydown = e => { if (e.key === 'Enter') addItem(); };
-    div.appendChild(form);
-    content.appendChild(div);
-  });
+function htmlEscape(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
+    '&': '&', '<': '<', '>': '>', '"': '"', "'": '''
+  })[ch]);
 }
-
-document.getElementById('addCat').onclick = () => {
-  const n = prompt('Nom de la catégorie :');
-  if (n && n.trim()) { data.tabs[data.active].cats.push({ name: n.trim(), items: [] }); save(); render(); }
-};
-document.getElementById('resetTab').onclick = () => {
-  if (confirm('Tout décocher dans cet onglet ?')) {
-    data.tabs[data.active].cats.forEach(c => c.items.forEach(i => i.c = false));
-    save(); render();
-  }
-};
-document.getElementById('delTab').onclick = () => {
-  if (data.tabs.length === 1) { alert('Il faut garder au moins un onglet.'); return; }
-  if (confirm('Supprimer cet onglet ?')) {
-    data.tabs.splice(data.active, 1); data.active = 0; save(); render();
-  }
-};
-
-updateLockUI();
-render();
-</script>
-</body>
-</html>
+function displayDate(value) {
+  if (!value) return '—';
+  const parts = value.split('-');
+  return parts.length === 3 ? parts[2] + '/' + parts[1] + '/' + parts[0] : value;
+}
+function dateToday() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function sortedEntries(entries) {
+  return entries.map((entry, index) => ({ entry, index })).sort((a, b) =>
+    String(b.entry.date || '').localeCompare(String(a.entry.date || '')) || b.index - a.index
+  ).map(x => x.entry);
+}
+function renderSuivi() {
+  document.getElementById('alert').innerHTML = '';
+  document.getElementById('actions').style.display = 'none';
+  const content = document.getElementById('content');
+  const escHtml = htmlEscape;
+  const section = (title, id, fields, entries, format) => {
+    let html = '<section class="suivi-section"><h2 class="section-title">' + title + '</h2>' +
+      '<form class="suivi-form" id="' + id + '">';
+    fields.forEach(f => { html += '<label>' + f.label + '<input name="' + f.name + '" type="' + (f.type || 'text') + '"' +
+      (f.step ? ' step="' + f.step + '"' : '') + (f.min != null ? ' min="' + f.min + '"' : '') +
+      (f.required ? ' required' : '') + (f.type === 'date' && f.today ? ' value="' + dateToday() + '"' : '') +
+      ' placeholder="' + (f.placeholder || '') + '"></label>'; });
+    html += '<button class="btn" type="submit">Ajouter à l’historique</button></form>';
+    const ordered = sortedEntries(entries);
+    html += ordered.length ? ordered.map((entry, index) => '<div class="suivi-entry">' + format(entry) +
+      (editing ? '<button class="del edit-only" data-del="' + index + '" aria-label="Supprimer cette ligne">×</button>' : '') + '</div>').join('') :
+      '<p style="color:#8b919b">Aucun historique enregistré.</p>';
+    html += '</section>';
+    return html;
+  };
+  content.innerHTML =
+    section('Vidange huile', 'formVidange', [
+      { name: 'date', label: 'Date de vidange', type: 'date', today: true, required: true },
+      { name: 'cuve1', label: 'Cuve 1', placeholder: 'Note / statut' },
+      { name: 'cuve2', label: 'Cuve 2', placeholder: 'Note / statut' },
+      { name: 'nettoyageDate', label: 'Date du nettoyage', type: 'date' }
+    ], suivi.vidanges, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Cuve 1 : ' + escHtml(e.cuve1 || '—') +
+      ' · Cuve 2 : ' + escHtml(e.cuve2 || '—') + ' · Nettoyage : ' + escHtml(displayDate(e.nettoyageDate))) +
+    section('Polarité & degré d’huile', 'formPolarite', [
+      { name: 'date', label: 'Date', type: 'date', today: true, required: true },
+      { name: 'polarite1', label: 'Cuve 1 — polarité', placeholder: 'Polarité' },
+      { name: 'degre1', label: 'Cuve 1 — degré', type: 'number', step: 'any', placeholder: 'Degré' },
+      { name: 'polarite2', label: 'Cuve 2 — polarité', placeholder: 'Polarité' },
+      { name: 'degre2', label: 'Cuve 2 — degré', type: 'number', step: 'any', placeholder: 'Degré' }
+    ], suivi.polarite, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Cuve 1 : polarité ' + escHtml(e.polarite1 || '—') +
+      ', degré ' + escHtml(e.degre1 || '—') + ' · Cuve 2 : polarité ' + escHtml(e.polarite2 || '—') + ', degré ' + escHtml(e.degre2 || '—')) +
+    section('Températures frigos', 'formFrigos', [
+      { name: 'date', label: 'Date', type: 'date', today: true, required: true },
+      { name: 'frigo1', label: 'Frigo 1 — température', type: 'number', step: 'any', placeholder: '°C' },
+      { name: 'frigo2', label: 'Frigo 2 — température', type: 'number', step:
