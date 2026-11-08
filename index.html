@@ -116,38 +116,39 @@
 </main>
 
 <script>
-const KEY = 'brutbutcher_checklist_v1';
+ const KEY = 'brutbutcher_checklist_v5';
 
 const defaultData = {
   active: 0,
   tabs: [
     {
-      name: 'Avant service',
+      name: 'Équipement',
       cats: [
+        { name: 'Trancheuses', items: [
+          { t: 'Lame', c: false },
+          { t: 'Bloc de découpe 1', c: false },
+          { t: 'Bloc de découpe 2', c: false }
+        ]},
+        { name: 'Plancha', items: [
+          { t: 'Spatule', c: false },
+          { t: 'Grattoir', c: false }
+        ]},
+        { name: 'Friteuse', items: [
+          { t: 'Panier à frites', c: false },
+          { t: 'Bac à frites 1', c: false },
+          { t: 'Bac à frites 2', c: false }
+        ]},
         { name: 'Découpe', items: [
           { t: 'Planche à découper', c: false },
           { t: 'Couteau', c: false }
         ]},
-        { name: 'Hygiène', items: [
-          { t: 'Plan de travail nettoyé', c: false },
-          { t: 'Lavage des mains', c: false },
-          { t: 'Tenue propre', c: false }
-        ]},
-        { name: 'Matériel', items: [
-          { t: 'Grill allumé', c: false },
-          { t: 'Pinces', c: false },
-          { t: 'Bacs gastro', c: false }
-        ]},
-        { name: 'Produits', items: [
-          { t: 'Viande sortie', c: false },
-          { t: 'Pains', c: false },
-          { t: 'Sauces', c: false }
+        { name: 'Comptoir', items: [
+          { t: 'Maintien chaud', c: false }
         ]}
       ]
     }
   ]
 };
-
 let data;
 try { data = JSON.parse(localStorage.getItem(KEY)) || defaultData; }
 catch (e) { data = defaultData; }
