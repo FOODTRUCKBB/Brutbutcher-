@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Checklist">
-<title>Brut Butcher - Checklist</title>
+<title>Brut Butcher - FOODTRUCK</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -116,37 +116,87 @@
 </main>
 
 <script>
- const KEY = 'brutbutcher_checklist_v5';
+ const KEY = 'brutbutcher_checklist_v6';
 
 const defaultData = {
   active: 0,
   tabs: [
-    {
-      name: 'Équipement',
-      cats: [
-        { name: 'Trancheuses', items: [
-          { t: 'Lame', c: false },
-          { t: 'Bloc de découpe 1', c: false },
-          { t: 'Bloc de découpe 2', c: false }
-        ]},
-        { name: 'Plancha', items: [
-          { t: 'Spatule', c: false },
-          { t: 'Grattoir', c: false }
-        ]},
-        { name: 'Friteuse', items: [
-          { t: 'Panier à frites', c: false },
-          { t: 'Bac à frites 1', c: false },
-          { t: 'Bac à frites 2', c: false }
-        ]},
-        { name: 'Découpe', items: [
-          { t: 'Planche à découper', c: false },
-          { t: 'Couteau', c: false }
-        ]},
-        { name: 'Comptoir', items: [
-          { t: 'Maintien chaud', c: false }
-        ]}
-      ]
-    }
+    { name: 'Mise en route', cats: [
+      { name: 'Gaz', items: [ { t: 'Bonbonne de propane 13kg X2', c: false } ]},
+      { name: "Distributeur d'eau", items: [ { t: 'Remplissage du bidon de 20L', c: false } ]},
+      { name: 'Électricité', items: [
+        { t: 'Rallonge électrique', c: false },
+        { t: 'Groupe électrogène', c: false },
+        { t: 'Bidon pour groupe électrogène sans plomb', c: false }
+      ]}
+    ]},
+    { name: 'Équipement', cats: [
+      { name: 'Trancheuses', items: [
+        { t: 'Bloc de découpe 1', c: false },
+        { t: 'Bloc de découpe 2', c: false },
+        { t: 'Lame X2', c: false }
+      ]},
+      { name: 'Plancha', items: [
+        { t: 'Spatule', c: false },
+        { t: 'Grattoir', c: false }
+      ]},
+      { name: 'Friteuse', items: [
+        { t: 'Panier à frites', c: false },
+        { t: 'Bac à frites 1', c: false },
+        { t: 'Bac à frites 2', c: false }
+      ]},
+      { name: 'Découpe', items: [
+        { t: 'Planche à découper', c: false },
+        { t: 'Couteau', c: false }
+      ]},
+      { name: 'Comptoir', items: [
+        { t: 'Maintien chaud', c: false },
+        { t: 'Bac pour sauce X2', c: false }
+      ]}
+    ]},
+    { name: 'Mise en place', cats: [
+      { name: 'Food', items: [
+        { t: 'Frite', c: false },
+        { t: 'Pavé', c: false },
+        { t: 'Cup sauce moutarde miel', c: false },
+        { t: 'Cup sauce ketchups', c: false },
+        { t: 'Cup sauce mayonnaise', c: false },
+        { t: 'Gros sel', c: false },
+        { t: 'Sel fin', c: false },
+        { t: 'Poivre', c: false }
+      ]},
+      { name: 'POPF', items: [
+        { t: 'Fond GM', c: false },
+        { t: 'Pince', c: false },
+        { t: 'Serviette', c: false }
+      ]},
+      { name: 'Devanture', items: [ { t: 'Affiche prix X2', c: false } ]}
+    ]},
+    { name: 'Propreté', cats: [
+      { name: 'Nettoyage', items: [
+        { t: 'Lavette', c: false },
+        { t: 'Spray alimentaire', c: false },
+        { t: 'Dégraissant', c: false },
+        { t: 'Kitchen pro', c: false }
+      ]},
+      { name: 'Équipement de propreté', items: [
+        { t: 'Poubelle 1', c: false },
+        { t: 'Poubelle 2', c: false },
+        { t: 'Sac poubelle', c: false },
+        { t: 'Balai + pelle', c: false }
+      ]}
+    ]},
+    { name: 'Formulaire', cats: [
+      { name: 'BookFoodtruck', items: [
+        { t: 'Température des deux frigos', c: false },
+        { t: 'Polarité des deux friteuses', c: false },
+        { t: 'Température des deux friteuses', c: false }
+      ]},
+      { name: 'Open caisse', items: [
+        { t: 'Comptage billet + pièce', c: false },
+        { t: 'Mise en route des deux TPE', c: false }
+      ]}
+    ]}
   ]
 };
 let data;
