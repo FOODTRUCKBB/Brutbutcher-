@@ -104,7 +104,6 @@
   .btn.ghost { background: transparent; color: #f2ede4; border: 2px solid #f2ede4; }
   .actions { display: flex; gap: 8px; margin-top: 24px; flex-wrap: wrap; }
 
-  /* Éléments visibles uniquement en mode édition */
   .edit-only { display: none !important; }
   body.editing .edit-only { display: revert !important; }
   body.editing .tab.add.edit-only { display: inline-block !important; }
@@ -112,16 +111,17 @@
   body.editing .add-row.edit-only { display: flex !important; }
   body.editing .actions.edit-only { display: flex !important; }
 
-  /* Caisse */
-  .caisse-row {
-    display: flex; align-items: center; gap: 12px; padding: 10px 4px;
+  /* Lignes de saisie (caisse, inventaire, CRA) */
+  .caisse-row, .inv-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 4px;
     border-bottom: 1px solid #242932; font-size: 18px;
   }
-  .caisse-row .lbl { flex: 1; letter-spacing: 1px; }
-  .caisse-row input {
+  .caisse-row .lbl, .inv-row .lbl { flex: 1; letter-spacing: 1px; }
+  .caisse-row input, .inv-row input, .txt-input {
     width: 80px; background: #1b1f26; border: 1px solid #2a2f38; color: #f2ede4;
     padding: 10px; font-family: inherit; font-size: 18px; text-align: center;
   }
+  .txt-input { width: 100%; text-align: left; }
   .caisse-row .sub-total { width: 90px; text-align: right; color: #8b919b; font-size: 16px; }
   .caisse-row .sub-total.has { color: #f2ede4; }
   .total-box {
@@ -130,14 +130,23 @@
     font-size: 22px; letter-spacing: 3px; text-transform: uppercase;
   }
   .total-box strong { font-size: 28px; }
+  .section-title {
+    margin: 22px 0 6px; font-size: 18px; letter-spacing: 3px; text-transform: uppercase;
+    border-bottom: 2px solid #f2ede4; padding-bottom: 4px;
+  }
+  .cols { display: flex; gap: 10px; }
+  .cols > div { flex: 1; }
+  .cols .col-title { text-align: center; font-size: 15px; letter-spacing: 3px; margin-bottom: 4px; color: #8b919b; }
+  .hist-row { display: flex; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid #242932; font-size: 16px; }
+  .hist-row small { color: #8b919b; }
 
-  /* Mise en page PDF / impression */
   .print-only { display: none; }
   @media print {
     body { background: #fff; color: #000; padding: 0; font-family: Arial, sans-serif; }
     header, .tabs, main { display: none !important; }
     .print-only { display: block; padding: 24px; }
     .print-only h1 { font-size: 24px; margin: 0 0 4px; }
+    .print-only h2 { font-size: 17px; margin: 18px 0 6px; }
     .print-only p { margin: 0 0 16px; color: #444; }
     .print-only table { width: 100%; border-collapse: collapse; font-size: 15px; }
     .print-only th, .print-only td { border: 1px solid #000; padding: 8px; text-align: left; }
@@ -174,9 +183,13 @@
 <div class="print-only" id="printArea"></div>
 
 <script>
-const KEY = 'brutbutcher_checklist_v7';
-const CAISSE_NAME = 'Caisse';
+const KEY = 'brutbutcher_checklist_v8';
 const PIN = '0109';
+const INV_KEY = 'brutbutcher_inventaire_v1';
+const CA_KEY = 'brutbutcher_ca_v1';
+const CAISSE_NAME = 'Caisse';
+const INVENTAIRE_NAME = 'Inventaire';
+const CA_NAME = 'CA';
 let editing = false;
 
 const defaultData = {
@@ -191,6 +204,7 @@ const defaultData = {
         { t: 'Bidon pour groupe électrogène sans plomb', c: false }
       ]}
     ]},
+    { name: INVENTAIRE_NAME, cats: [], inventaire: true },
     { name: 'Équipement', cats: [
       { name: 'Trancheuses', items: [
         { t: 'Bloc de découpe 1', c: false },
@@ -244,7 +258,8 @@ const defaultData = {
         { t: 'Poubelle 1', c: false },
         { t: 'Poubelle 2', c: false },
         { t: 'Sac poubelle', c: false },
-        { t: 'Balai + pelle', c: false }
+        { t: 'Balai + pelle', c: false },
+        { t: 'Rouleau d\'essuie-tout x4', c: false }
       ]}
     ]},
     { name: 'Formulaire', cats: [
@@ -258,9 +273,25 @@ const defaultData = {
         { t: 'Mise en route des deux TPE', c: false }
       ]}
     ]},
-    { name: CAISSE_NAME, cats: [], caisse: true }
+    { name: CAISSE_NAME, cats: [], caisse: true },
+    { name: CA_NAME, cats: [], ca: true }
   ]
 };
+
+/* Inventaire : articles et unité */
+const INV_ITEMS = [
+  { id: 'frites', label: 'Frites', unit: 'kg', step: '0.1' },
+  { id: 'pave', label: 'Pavé', unit: '', step: '1' },
+  { id: 'cup_mayo', label: 'Cup sauce mayonnaise', unit: '', step: '1' },
+  { id: 'cup_ketchup', label: 'Cup sauce ketchup', unit: '', step: '1' },
+  { id: 'cup_moutarde', label: 'Cup sauce moutarde / miel', unit: '', step: '1' },
+  { id: 'pince', label: 'Pince', unit: '', step: '1' },
+  { id: 'serviette', label: 'Serviette', unit: '', step: '1' }
+];
+const CRA_ITEMS = [
+  { id: 'pave_frites', label: 'Pavé frites', prix: 15 },
+  { id: 'grandes_frites', label: 'Grandes frites', prix: 6 }
+];
 
 const DENOMS = [
   { label: '1 centime', v: 0.01 }, { label: '2 centimes', v: 0.02 },
@@ -277,15 +308,37 @@ try { data = JSON.parse(localStorage.getItem(KEY)) || defaultData; }
 catch (e) { data = defaultData; }
 if (!data.caisseQty) data.caisseQty = {};
 
+/* Données inventaire et CA, séparées pour ne pas être effacées par "Réinitialiser" */
+let inv;
+try { inv = JSON.parse(localStorage.getItem(INV_KEY)) || {}; } catch (e) { inv = {}; }
+if (!inv.debut) inv.debut = {};
+if (!inv.fin) inv.fin = {};
+if (!inv.cra) inv.cra = {};
+if (!inv.evenement) inv.evenement = { nom: '', date: '' };
+
+let caHist;
+try { caHist = JSON.parse(localStorage.getItem(CA_KEY)) || []; } catch (e) { caHist = []; }
+
 function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+function saveInv() { localStorage.setItem(INV_KEY, JSON.stringify(inv)); }
+function saveCA() { localStorage.setItem(CA_KEY, JSON.stringify(caHist)); }
+
 function esc(s) {
   return String(s).replace(/[&<>"]/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"' }[c]));
 }
 function eur(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
+function num(x) { return parseFloat(x) || 0; }
 
 function caisseTotal() {
   let tot = 0;
   DENOMS.forEach((d, i) => { tot += (parseInt(data.caisseQty[i]) || 0) * d.v; });
+  return Math.round(tot * 100) / 100;
+}
+
+/* CRA : chiffre d'affaires de la prestation */
+function craTotal() {
+  let tot = 0;
+  CRA_ITEMS.forEach(c => { tot += num(inv.cra[c.id]) * c.prix; });
   return Math.round(tot * 100) / 100;
 }
 
@@ -341,6 +394,215 @@ function renderTabs() {
   }
 }
 
+/* ===== Onglet INVENTAIRE ===== */
+function renderInventaire() {
+  document.getElementById('alert').innerHTML = '';
+  document.getElementById('actions').style.display = 'none';
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  const top = document.createElement('div');
+  top.innerHTML =
+    '<div class="section-title">Événement</div>' +
+    '<input class="txt-input" id="evNom" placeholder="Veuillez entrer le nom de l\'événement" value="' + esc(inv.evenement.nom) + '">' +
+    '<input class="txt-input" id="evDate" type="date" style="margin-top:8px" value="' + esc(inv.evenement.date) + '">';
+  content.appendChild(top);
+  top.querySelector('#evNom').oninput = e => { inv.evenement.nom = e.target.value; saveInv(); };
+  top.querySelector('#evDate').oninput = e => { inv.evenement.date = e.target.value; saveInv(); };
+
+  const title = document.createElement('div');
+  title.className = 'section-title';
+  title.textContent = 'Inventaire';
+  content.appendChild(title);
+
+  const head = document.createElement('div');
+  head.className = 'cols';
+  head.innerHTML = '<div class="col-title">Inventaire début</div><div class="col-title">Inventaire fin</div>';
+  content.appendChild(head);
+
+  INV_ITEMS.forEach(it => {
+    const row = document.createElement('div');
+    row.className = 'inv-row';
+    row.innerHTML =
+      '<span class="lbl">' + esc(it.label) + (it.unit ? ' (' + it.unit + ')' : '') + '</span>' +
+      '<input type="number" inputmode="decimal" step="' + it.step + '" min="0" placeholder="0" value="' + (inv.debut[it.id] ?? '') + '">' +
+      '<input type="number" inputmode="decimal" step="' + it.step + '" min="0" placeholder="0" value="' + (inv.fin[it.id] ?? '') + '">';
+    const [dInp, fInp] = row.querySelectorAll('input');
+    dInp.oninput = () => { inv.debut[it.id] = dInp.value; saveInv(); };
+    fInp.oninput = () => { inv.fin[it.id] = fInp.value; saveInv(); };
+    content.appendChild(row);
+  });
+
+  const craTitle = document.createElement('div');
+  craTitle.className = 'section-title';
+  craTitle.textContent = 'CRA (ventes TPE)';
+  content.appendChild(craTitle);
+
+  const craBox = document.createElement('div');
+  content.appendChild(craBox);
+  function drawCra() {
+    let html = '';
+    CRA_ITEMS.forEach(c => {
+      const q = inv.cra[c.id] ?? '';
+      html += '<div class="caisse-row"><span class="lbl">' + esc(c.label) + ' (' + c.prix + ' €)</span>' +
+        '<input type="number" inputmode="numeric" min="0" placeholder="0" data-cra="' + c.id + '" value="' + q + '">' +
+        '<span class="sub-total">' + eur(num(q) * c.prix) + '</span></div>';
+    });
+    html += '<div class="total-box"><span>CA</span><strong id="caVal">' + eur(craTotal()) + '</strong></div>';
+    craBox.innerHTML = html;
+    craBox.querySelectorAll('input[data-cra]').forEach(inp => {
+      inp.oninput = () => {
+        inv.cra[inp.dataset.cra] = inp.value;
+        saveInv();
+        const c = CRA_ITEMS.find(x => x.id === inp.dataset.cra);
+        inp.parentElement.querySelector('.sub-total').textContent = eur(num(inp.value) * c.prix);
+        document.getElementById('caVal').textContent = eur(craTotal());
+      };
+    });
+  }
+  drawCra();
+
+  const act = document.createElement('div');
+  act.className = 'actions';
+  act.innerHTML =
+    '<button class="btn" id="pdfInv">Générer le PDF</button>' +
+    '<button class="btn ghost" id="saveCA">Enregistrer dans CA</button>' +
+    '<button class="btn ghost" id="resetService">Réinitialiser le service</button>';
+  content.appendChild(act);
+
+  document.getElementById('pdfInv').onclick = generateInventairePDF;
+  document.getElementById('saveCA').onclick = saveCAEntry;
+  document.getElementById('resetService').onclick = resetService;
+}
+
+function restant(id) {
+  const d = num(inv.debut[id]);
+  const f = num(inv.fin[id]);
+  return d - f;
+}
+
+function generateInventairePDF() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR') + ' à ' +
+    now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const ev = inv.evenement.nom ? esc(inv.evenement.nom) : 'Événement non nommé';
+  const evDate = inv.evenement.date ? new Date(inv.evenement.date).toLocaleDateString('fr-FR') : '';
+
+  let rows = '';
+  INV_ITEMS.forEach(it => {
+    const d = inv.debut[it.id] ?? '';
+    const f = inv.fin[it.id] ?? '';
+    const r = restant(it.id);
+    rows += '<tr><td>' + esc(it.label) + (it.unit ? ' (' + it.unit + ')' : '') + '</td>' +
+      '<td class="r">' + (d === '' ? '-' : d) + '</td>' +
+      '<td class="r">' + (f === '' ? '-' : f) + '</td>' +
+      '<td class="r">' + (d === '' || f === '' ? '-' : r.toString().replace('.', ',')) + '</td></tr>';
+  });
+
+  let craRows = '';
+  CRA_ITEMS.forEach(c => {
+    const q = num(inv.cra[c.id]);
+    craRows += '<tr><td>' + esc(c.label) + ' (' + c.prix + ' €)</td><td class="r">' + q + '</td><td class="r">' + eur(q * c.prix) + '</td></tr>';
+  });
+
+  document.getElementById('printArea').innerHTML =
+    '<h1>Brut Butcher - Récapitulatif événement</h1>' +
+    '<p>' + ev + (evDate ? ' - ' + evDate : '') + '<br>Édité le ' + dateStr + '</p>' +
+    '<h2>Inventaire</h2>' +
+    '<table><thead><tr><th>Article</th><th class="r">Début</th><th class="r">Fin</th><th class="r">Restant</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>' +
+    '<h2>CRA</h2>' +
+    '<table><thead><tr><th>Formule</th><th class="r">Vendus</th><th class="r">Montant</th></tr></thead>' +
+    '<tbody>' + craRows + '</tbody></table>' +
+    '<div class="tot">CHIFFRE D\'AFFAIRES : ' + eur(craTotal()) + '</div>';
+  window.print();
+}
+
+/* Enregistre le CA de l'événement dans l'historique */
+function saveCAEntry() {
+  if (!inv.evenement.nom && !inv.evenement.date) {
+    alert("Renseignez le nom et la date de l'événement d'abord.");
+    return;
+  }
+  caHist.push({
+    nom: inv.evenement.nom || 'Sans nom',
+    date: inv.evenement.date || new Date().toISOString().slice(0, 10),
+    ca: craTotal()
+  });
+  saveCA();
+  alert('CA enregistré : ' + eur(craTotal()));
+}
+
+/* Remet l'inventaire fin en début, décoche la checklist, garde le CA */
+function resetService() {
+  if (!confirm("Réinitialiser le service ? La checklist sera décochée, l'inventaire fin deviendra l'inventaire début et le CRA sera vidé.")) return;
+  const newDebut = {};
+  INV_ITEMS.forEach(it => { newDebut[it.id] = inv.fin[it.id] ?? ''; });
+  inv.debut = newDebut;
+  inv.fin = {};
+  inv.cra = {};
+  inv.evenement = { nom: '', date: '' };
+  saveInv();
+  data.tabs.forEach(t => (t.cats || []).forEach(c => c.items.forEach(i => i.c = false)));
+  data.caisseQty = {};
+  save();
+  render();
+}
+
+/* ===== Onglet CA : historique par année et par mois ===== */
+function renderCA() {
+  document.getElementById('alert').innerHTML = '';
+  document.getElementById('actions').style.display = 'none';
+  const content = document.getElementById('content');
+
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7)); weekStart.setHours(0,0,0,0);
+  const monthStr = today.slice(0, 7);
+  const yearStr = today.slice(0, 4);
+
+  const sumBy = fn => caHist.filter(fn).reduce((s, e) => s + num(e.ca), 0);
+  const jour = sumBy(e => e.date === today);
+  const semaine = sumBy(e => new Date(e.date) >= weekStart);
+  const mois = sumBy(e => e.date.slice(0, 7) === monthStr);
+  const annee = sumBy(e => e.date.slice(0, 4) === yearStr);
+
+  content.innerHTML =
+    '<div class="section-title">Chiffre d\'affaires</div>' +
+    '<div class="caisse-row"><span class="lbl">Aujourd\'hui</span><strong>' + eur(jour) + '</strong></div>' +
+    '<div class="caisse-row"><span class="lbl">Cette semaine</span><strong>' + eur(semaine) + '</strong></div>' +
+    '<div class="caisse-row"><span class="lbl">Ce mois</span><strong>' + eur(mois) + '</strong></div>' +
+    '<div class="caisse-row"><span class="lbl">Cette année</span><strong>' + eur(annee) + '</strong></div>';
+
+  // Historique groupé par année puis mois
+  const groups = {};
+  caHist.forEach(e => {
+    const y = e.date.slice(0, 4);
+    const m = e.date.slice(0, 7);
+    groups[y] = groups[y] || {};
+    groups[y][m] = groups[y][m] || [];
+    groups[y][m].push(e);
+  });
+  const years = Object.keys(groups).sort().reverse();
+  if (years.length === 0) {
+    content.innerHTML += '<p style="color:#8b919b;text-align:center;margin-top:30px">Aucun événement enregistré.</p>';
+  }
+  years.forEach(y => {
+    const yTot = Object.values(groups[y]).flat().reduce((s, e) => s + num(e.ca), 0);
+    content.innerHTML += '<div class="section-title">' + y + ' - ' + eur(yTot) + '</div>';
+    Object.keys(groups[y]).sort().reverse().forEach(m => {
+      const mTot = groups[y][m].reduce((s, e) => s + num(e.ca), 0);
+      const label = new Date(m + '-01').toLocaleDateString('fr-FR', { month: 'long' });
+      content.innerHTML += '<div class="cat-title"><h3>' + esc(label) + '</h3><span class="count">' + eur(mTot) + '</span></div>';
+      groups[y][m].slice().reverse().forEach(e => {
+        const d = new Date(e.date).toLocaleDateString('fr-FR');
+        content.innerHTML += '<div class="hist-row"><span>' + esc(e.nom) + ' <small>' + d + '</small></span><strong>' + eur(num(e.ca)) + '</strong></div>';
+      });
+    });
+  });
+}
+
+/* ===== Onglet CAISSE ===== */
 function renderCaisse() {
   document.getElementById('alert').innerHTML = '';
   document.getElementById('actions').style.display = 'none';
@@ -381,13 +643,13 @@ function renderCaisse() {
     '<button class="btn ghost" id="clearCaisse">Remettre à zéro</button>';
   content.appendChild(act);
 
-  document.getElementById('pdfBtn').onclick = generatePDF;
+  document.getElementById('pdfBtn').onclick = generateCaissePDF;
   document.getElementById('clearCaisse').onclick = () => {
     if (confirm('Remettre toute la caisse à zéro ?')) { data.caisseQty = {}; save(); render(); }
   };
 }
 
-function generatePDF() {
+function generateCaissePDF() {
   const now = new Date();
   const dateStr = now.toLocaleDateString('fr-FR') + ' à ' +
     now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -408,15 +670,17 @@ function generatePDF() {
   window.print();
 }
 
+/* ===== Rendu général ===== */
 function render() {
   if (data.active >= data.tabs.length) data.active = 0;
   const tab = data.tabs[data.active];
   renderTabs();
 
   if (tab.caisse) { renderCaisse(); return; }
+  if (tab.inventaire) { renderInventaire(); return; }
+  if (tab.ca) { renderCA(); return; }
   document.getElementById('actions').style.display = '';
 
-  // Résumé de ce qui manque
   const missing = [];
   tab.cats.forEach(cat => cat.items.forEach(it => { if (!it.c) missing.push({ cat: cat.name, t: it.t }); }));
   const alertEl = document.getElementById('alert');
@@ -430,7 +694,6 @@ function render() {
       '</ul></div>';
   }
 
-  // Catégories
   const content = document.getElementById('content');
   content.innerHTML = '';
   if (tab.cats.length === 0) {
