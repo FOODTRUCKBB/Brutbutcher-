@@ -773,8 +773,148 @@ function renderSuivi() {
       { name: 'polarite2', label: 'Cuve 2 — polarité', placeholder: 'Polarité' },
       { name: 'degre2', label: 'Cuve 2 — degré', type: 'number', step: 'any', placeholder: 'Degré' }
     ], suivi.polarite, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Cuve 1 : polarité ' + escHtml(e.polarite1 || '—') +
-      ', degré ' + escHtml(e.degre1 || '—') + ' · Cuve 2 : polarité ' + escHtml(e.polarite2 || '—') + ', degré ' + escHtml(e.degre2 || '—')) +
+      ', degré ' + escHtml(e.degre1 || '—') +
+           ', degré ' + escHtml(e.degre1 || '—') + ' · Cuve 2 : polarité ' + escHtml(e.polarite2 || '—') + ', degré ' + escHtml(e.degre2 || '—')) +
     section('Températures frigos', 'formFrigos', [
       { name: 'date', label: 'Date', type: 'date', today: true, required: true },
       { name: 'frigo1', label: 'Frigo 1 — température', type: 'number', step: 'any', placeholder: '°C' },
-      { name: 'frigo2', label: 'Frigo 2 — température', type: 'number', step:
+      { name: 'frigo2', label: 'Frigo 2 — température', type: 'number', step: 'any', placeholder: '°C' }
+    ], suivi.frigos, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Frigo 1 : ' + escHtml(e.frigo1 || '—') + ' °C · Frigo 2 : ' + escHtml(e.frigo2 || '—') + ' °C') +
+    section('Nettoyage des hottes', 'formHottes', [
+      { name: 'date', label: 'Date du nettoyage', type: 'date', today: true, required: true }
+    ], suivi.hottes, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong>') +
+    '<div class="actions"><button class="btn ghost" id="generateSuiviPDF">Générer PDF</button></div>';
+
+  const bindForm = (id, key, names) => {
+    const form = document.getElementById(id);
+    form.onsubmit = event => {
+      event.preventDefault();
+      const entry = {};
+      names.forEach(name => { entry[name] = form.elements[name].value.trim(); });
+      if (!entry.date) return;
+      suivi[key].unshift(entry);
+      saveSuivi(); renderSuivi();
+    };
+  };
+  bindForm('formVidange', 'vidanges', ['date', 'cuve1', 'cuve2', 'nettoyageDate']);
+  bindForm('formPolarite', 'polarite', ['date', 'polarite1', 'degre1', 'polarite2', 'degre2']);
+  bindForm('formFrigos', 'frigos', ['date', 'frigo1', 'frigo2']);
+  bindForm('formHottes', 'hottes', ['date']);
+  content.querySelectorAll('[data-del]').forEach(button => {
+    button.onclick = () => {
+      if (!editing) return;
+      const container = button.closest('.suivi-section');
+      const sectionIndex = Array.from(content.querySelectorAll('.suivi-section')).indexOf(container);
+      const key = ['vidanges', 'polarite', 'frigos', 'hottes'][sectionIndex];
+      const ordered = sortedEntries(suivi[key]);
+      const rowIndex = Number(button.dataset.del);
+      const target = ordered[rowIndex];
+      suivi[key].splice(suivi[key].indexOf(target), 1);
+      saveSuivi(); renderSuivi();
+    };
+  });
+  document.getElementById('generateSuiviPDF').onclick = generateSuiviPDF;
+}
+function generateSuiviPDF() {
+  const table = (title, headers, rows) => '<h2>' + htmlEscape(title) + '</h2><table><thead><tr>' +
+    headers.map(h => '<th>' + htmlEscape(h) + '</th>').join('') + '</tr></thead><tbody>' +
+    (rows.length ? rows.map(row => '<tr>' + row.map(v => '<td>' + htmlEscape(v || '—') + '</td>').join('') + '</tr>').join('') :
+      '<tr><td colspan="' + headers.length + '">Aucune donnée enregistrée.</td></tr>') + '</tbody></table>';
+  const rowsVidange = sortedEntries(suivi.vidanges).map(e => [displayDate(e.date), e.cuve1, e.cuve2, displayDate(e.nettoyageDate)]);
+  const rowsPolarite = sortedEntries(suivi.polarite).map(e => [displayDate(e.date), e.polarite1, e.degre1, e.polarite2, e.degre2]);
+  const rowsFrigos = sortedEntries(suivi.frigos).map(e => [displayDate(e.date), e.frigo1, e.frigo2]);
+  const rowsHottes = sortedEntries(suivi.hottes).map(e => [displayDate(e.date)]);
+  const w = window.open('', '_blank');
+  if (!w) { alert('Autorisez les fenêtres pop-up pour générer le PDF.'); return; }
+  w.document.open();
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Suivi Huile & Frigos</title><style>body{font:14px Arial,sans-serif;margin:24px;color:#111}h1{font-size:22px}h2{font-size:17px;margin:22px 0 8px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th,td{border:1px solid #555;padding:7px;text-align:left}th{background:#eee}@media print{body{margin:12mm}}</style></head><body><h1>Suivi Huile & Frigos</h1>' +
+    table('Vidange huile', ['Date', 'Cuve 1', 'Cuve 2', 'Nettoyage — date'], rowsVidange) +
+    table('Polarité & degré d’huile', ['Date', 'Cuve 1 — polarité', 'Cuve 1 — degré', 'Cuve 2 — polarité', 'Cuve 2 — degré'], rowsPolarite) +
+    table('Températures frigos', ['Date', 'Frigo 1 (°C)', 'Frigo 2 (°C)'], rowsFrigos) +
+    table('Nettoyage des hottes', ['Date du nettoyage'], rowsHottes) +
+    '<script>window.onload=function(){window.print();};<\/script></body></html>');
+  w.document.close();
+}
+
+function render() {
+  if (data.active >= data.tabs.length) data.active = 0;
+  const tab = data.tabs[data.active];
+  renderTabs();
+
+  if (tab.caisse) { renderCaisse(); return; }
+  if (tab.inventaire) { renderInventaire(); return; }
+  if (tab.ca) { renderCA(); return; }
+  if (tab.suivi || tab.name === SUIVI_NAME) { renderSuivi(); return; }
+  document.getElementById('actions').style.display = '';
+
+  const missing = [];
+  tab.cats.forEach(cat => cat.items.forEach(it => { if (!it.c) missing.push({ cat: cat.name, t: it.t }); }));
+  const alertEl = document.getElementById('alert');
+  if (tab.cats.length === 0) {
+    alertEl.innerHTML = '';
+  } else if (missing.length === 0) {
+    alertEl.innerHTML = '<div class="alert ok"><h2>Tout est prêt, bon service</h2></div>';
+  } else {
+    alertEl.innerHTML = '<div class="alert"><h2>À régler avant le service (' + missing.length + ')</h2><ul>' +
+      missing.map(m => '<li>' + esc(m.t) + ' <small>— ' + esc(m.cat) + '</small></li>').join('') +
+      '</ul></div>';
+  }
+
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+  if (tab.cats.length === 0) {
+    content.innerHTML = '<p style="color:#8b919b;text-align:center;margin-top:30px">' +
+      (editing ? 'Aucune catégorie. Appuyez sur « + Catégorie ».' : 'Aucune catégorie.') + '</p>';
+  }
+  tab.cats.forEach((cat, ci) => {
+    const done = cat.items.filter(i => i.c).length;
+    const div = document.createElement('div');
+    div.className = 'cat';
+    div.innerHTML =
+      '<div class="cat-title"><h3>' + esc(cat.name) + '</h3><span class="count">' + done + '/' + cat.items.length + '</span></div>';
+    cat.items.forEach((it, ii) => {
+      const row = document.createElement('div');
+      row.className = 'item' + (it.c ? ' done' : '');
+      row.innerHTML = '<label><input type="checkbox"' + (it.c ? ' checked' : '') + '><span>' + esc(it.t) + '</span></label>' +
+        '<button class="del edit-only" aria-label="Supprimer">×</button>';
+      row.querySelector('input').onchange = e => { it.c = e.target.checked; save(); render(); };
+      row.querySelector('.del').onclick = () => { cat.items.splice(ii, 1); save(); render(); };
+      div.appendChild(row);
+    });
+    const form = document.createElement('div');
+    form.className = 'add-row edit-only';
+    form.innerHTML = '<input type="text" placeholder="Ajouter une ligne…"><button class="btn">OK</button>';
+    const inp = form.querySelector('input');
+    const addItem = () => {
+      const v = inp.value.trim();
+      if (v) { cat.items.push({ t: v, c: false }); save(); render(); }
+    };
+    form.querySelector('button').onclick = addItem;
+    inp.onkeydown = e => { if (e.key === 'Enter') addItem(); };
+    div.appendChild(form);
+    content.appendChild(div);
+  });
+}
+
+document.getElementById('addCat').onclick = () => {
+  const n = prompt('Nom de la catégorie :');
+  if (n && n.trim()) { data.tabs[data.active].cats.push({ name: n.trim(), items: [] }); save(); render(); }
+};
+document.getElementById('resetTab').onclick = () => {
+  if (confirm('Tout décocher dans cet onglet ?')) {
+    data.tabs[data.active].cats.forEach(c => c.items.forEach(i => i.c = false));
+    save(); render();
+  }
+};
+document.getElementById('delTab').onclick = () => {
+  if (data.tabs.length === 1) { alert('Il faut garder au moins un onglet.'); return; }
+  if (confirm('Supprimer cet onglet ?')) {
+    data.tabs.splice(data.active, 1); data.active = 0; save(); render();
+  }
+};
+
+updateLockUI();
+render();
+</script>
+</body>
+</html>
