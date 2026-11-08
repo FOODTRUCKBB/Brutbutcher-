@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Brut Butcher">
+<title>Brut Butcher - Checklist</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --noir: #15181c;
+    --anthracite: #2b3138;
+    --gris: #8d949c;
+    --blanc: #f4f1ec;
+    --bois: #c9a27a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; border-radius: 0; }
+  body { margin: 0; font-family: "Oswald", "Arial Narrow", Helvetica, sans-serif; background: var(--noir); color: var(--blanc); padding-bottom: 80px; }
+
+  /* En-tête façon enseigne */
+  header { background: var(--noir); padding: 14px 16px 12px; padding-top: calc(14px + env(safe-area-inset-top)); position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--anthracite);
+    background-image: repeating-linear-gradient(90deg, rgba(201,162,122,.10) 0 3px, transparent 3px 9px); }
+  .enseigne { border-top: 3px solid var(--blanc); border-bottom: 3px solid var(--blanc); padding: 8px 0 6px; text-align: center; background: var(--noir); }
+  .enseigne h1 { margin: 0; font-size: 34px; line-height: 1; font-weight: 700; letter-spacing: 6px; text-transform: uppercase; }
+  .drapeau { display: flex; width: 54px; height: 5px; margin: 6px auto 0; }
+  .drapeau i { flex: 1; }
+  .drapeau i:nth-child(1) { background: #2a4d9b; }
+  .drapeau i:nth-child(2) { background: #fff; }
+  .drapeau i:nth-child(3) { background: #d6342c; }
+  .baseline { text-align: center; font-size: 11px; letter-spacing: 6px; text-transform: uppercase; color: var(--gris); margin: 8px 0 0; font-weight: 400; }
+  #resume { text-align: center; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin: 8px 0 0; color: var(--blanc); }
+  .barre { height: 4px; background: var(--anthracite); margin-top: 8px; }
+  .barre div { height: 100%; width: 0; background: var(--bois); transition: width .3s; }
+
+  /* Onglets */
+  .onglets { display: flex; overflow-x: auto; background: var(--anthracite); position: sticky; top: 0; }
+  .onglets button { flex: 0 0 auto; background: var(--anthracite); color: var(--gris); border: 0; border-right: 1px solid var(--noir); padding: 14px 18px; font-family: inherit; font-size: 14px; letter-spacing: 3px; text-transform: uppercase; font-weight: 500; }
+  .onglets button.actif { background: var(--blanc); color: var(--noir); font-weight: 700; }
+  .onglets .plus { color: var(--bois); font-size: 22px; padding: 10px 18px; }
+
+  .vue { padding: 12px; }
+
+  /* Catégories */
+  details { background: var(--anthracite); border-left: 6px solid var(--bois); margin-bottom: 12px; }
+  summary { padding: 15px 16px; font-weight: 700; font-size: 18px; letter-spacing: 3px; text-transform: uppercase; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+  summary::-webkit-details-marker { display: none; }
+  summary .cpt { font-size: 14px; font-weight: 500; color: var(--gris); letter-spacing: 1px; }
+  summary .cpt.ok { color: var(--noir); background: var(--bois); padding: 2px 9px; font-weight: 700; }
+
+  /* Lignes */
+  .ligne { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-top: 1px solid var(--noir); font-size: 18px; font-weight: 400; letter-spacing: .5px; }
+  .ligne input[type=checkbox] { appearance: none; -webkit-appearance: none; width: 28px; height: 28px; border: 2px solid var(--blanc); background: var(--noir); flex-shrink: 0; margin: 0; }
+  .ligne input[type=checkbox]:checked { background: var(--blanc); }
+  .ligne input[type=checkbox]:checked::after { content: "✓"; color: var(--noir); font-weight: 700; font-size: 20px; display: flex; justify-content: center; align-items: center; height: 100%; }
+  .ligne span { flex: 1; }
+  .ligne.fait span { color: var(--gris); text-decoration: line-through; }
+  .suppr { background: none; border: 0; color: #5d646c; font-size: 22px; padding: 0 4px; margin: 0; width: auto; font-family: inherit; }
+
+  .ajout { display: flex; border-top: 1px solid var(--noir); }
+  .ajout input { flex: 1; background: var(--noir); color: var(--blanc); border: 0; padding: 14px 16px; font-size: 16px; font-family: inherit; letter-spacing: 1px; min-width: 0; }
+  .ajout input::placeholder { color: #5d646c; }
+  .ajout button { width: auto; margin: 0; padding: 0 20px; background: var(--bois); color: var(--noir); border: 0; font-weight: 700; font-size: 22px; font-family: inherit; }
+
+  /* Onglet Manque */
+  .manque-cat { font-weight: 500; padding: 14px 4px 6px; font-size: 13px; letter-spacing: 3px; color: var(--gris); text-transform: uppercase; }
+  .manque-item { background: var(--anthracite); border-left: 10px solid var(--blanc); padding: 14px 16px; margin-bottom: 6px; font-size: 18px; letter-spacing: .5px; }
+  .tout-ok { background: var(--blanc); color: var(--noir); padding: 24px; text-align: center; font-weight: 700; font-size: 20px; letter-spacing: 4px; text-transform: uppercase; }
+
+  /* Boutons */
+  .bouton { background: var(--blanc); color: var(--noir); border: 0; padding: 15px; font-family: inherit; font-size: 15px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; width: 100%; margin-top: 12px; }
+  .bouton.contour { background: transparent; color: var(--blanc); border: 2px solid var(--blanc); }
+.actions-onglet { margin-top: 18px; } </style> </head> <body> <header> <div class="enseigne"> <h1>Brut Butcher</h1> <div class="drapeau"><i></i><i></i><i></i></div> </div> <p class="baseline">Le fast-food du boucher</p> <p id="resume">Checklist</p> <div class="barre"><div id="progres"></div></div> </header> <divclass="onglets" id="onglets"></div> <div class="vue" id="vue"></div> <script> // ====== DONNÉES DE DÉPART (ensuite tout se modifie dans l'application) ====== const DEFAUT = { onglets: [ { nom: "Équipement", cats: [ { cat: "Trancheuses", items: ["Lame", "Bloc de découpe 1", "Bloc de découpe 2"] }, { cat: "Plancha", items: ["Spatule", "Racloir (grattoir à plancha)"] }, { cat: "Friteuse", items: ["Panier à frites (grand panier en métal)", "Louche", "Bac à frites 1", "Bac à frites 2"] }, { cat: "Comptoir", items: ["Maintien au chaud des frites"] }, { cat: "Plan de travail", items: ["TPE 1", "TPE 2", "Book du food truck", "Stylos", "Rouleaux de papier TPE"] }, { cat: "Découpe", items: ["Planche à découper", "Couteau"] } ]} ] }; // =========================================================================== const CLE = "bb_app_v2"; let app = JSON.parse(localStorage.getItem(CLE) || "null") || { data: DEFAUT, coches: {}, actif: 0 }; const MANQUE = -1; function sauver() { localStorage.setItem(CLE, JSON.stringify(app)); } const esc = s => s.replace(/&/g,"&").replace(/</g,"<").replace(/"/g,"""); const cle = (o, c, i) => o + "|" + c + "|" + i; function stats() { let total = 0, coches = 0; app.data.onglets.forEach(o => o.cats.forEach(c => c.items.forEach(i => { total++; if (app.coches[cle(o.nom, c.cat, i)]) coches++; }))); return { total, coches }; } function afficher() { const { total, coches } = stats(); const reste = total - coches; document.getElementById("resume").textContent = reste ? `${coches}/${total} vérifiés, ${reste} manquant(s)` : "Tout est prêt ✓"; document.getElementById("progres").style.width = (total ? coches / total * 100 : 0) + "%"; let nav = app.data.onglets.map((o, n) => `<button class="${app.actif === n ? "actif" : ""}" onclick="aller(${n})">${esc(o.nom)}</button>`).join(""); nav += `<button class="${app.actif === MANQUE ? "actif" :""}" onclick="aller(-1)">Manque (${reste})</button>`; nav += `<button class="plus" onclick="nouvelOnglet()">+</button>`; document.getElementById("onglets").innerHTML = nav; const vue = document.getElementById("vue"); const ouverts = [...vue.querySelectorAll("details")].map(d => d.open); if (app.actif === MANQUE) { let h = ""; app.data.onglets.forEach(o => o.cats.forEach(c => { const abs = c.items.filter(i => !app.coches[cle(o.nom, c.cat, i)]); if (abs.length) h += `<div class="manque-cat">${esc(o.nom)} / ${esc(c.cat)}</div>` + abs.map(i => `<div class="manque-item">${esc(i)}</div>`).join(""); })); vue.innerHTML = (h || `<div class="tout-ok">Tout est bon, service prêt ✓</div>`) + `<button class="bouton contour" onclick="toutDecocher()">Tout décocher (nouveau service)</button>`; return; } const o = app.data.onglets[app.actif]; let h = ""; o.cats.forEach((c, ci) => { const faits = c.items.filter(i => app.coches[cle(o.nom, c.cat, i)]).length; const ok = c.items.length && faits === c.items.length; const ouvert = ouverts.length ? ouverts[ci] : ci === 0; h += `<details ${ouvert ? "open" : ""}><summary>${esc(c.cat)}<span class="cpt ${ok ? "ok" : ""}">${faits}/${c.items.length}${ok ? " ✓" : ""}</span></summary>`; c.items.forEach((i, ii) => { const k = cle(o.nom, c.cat, i); h += `<div class="ligne ${app.coches[k] ? "fait" : ""}"><input type="checkbox" ${app.coches[k] ? "checked" : ""} onchange="basculer(${ci},${ii})"><span>${esc(i)}</span><button class="suppr"onclick="supprLigne(${ci},${ii})">×</button></div>`; }); h += `<div class="ajout"><input id="ajout-${ci}"placeholder="Ajouter une ligne" onkeydown="if(event.key==='Enter')ajouterLigne(${ci})"><buttononclick="ajouterLigne(${ci})">+</button></div></details>`; }); h += `<button class="bouton"onclick="nouvelleCat()">+ Nouvelle catégorie</button>`; h += `<div class="actions-onglet"><button class="bouton contour" onclick="renommerOnglet()">Renommer cet onglet</button><button class="bouton contour"onclick="supprOnglet()">Supprimer cet onglet</button></div>`; vue.innerHTML = h; } function ongletActif() { return app.data.onglets[app.actif]; } function aller(n) { app.actif = n; sauver(); afficher(); window.scrollTo(0, 0); } function basculer(ci, ii) { const o = ongletActif(), c = o.cats[ci]; const k = cle(o.nom, c.cat, c.items[ii]); app.coches[k] = !app.coches[k]; sauver(); afficher(); } function ajouterLigne(ci) { const champ = document.getElementById("ajout-" + ci); const v = champ.value.trim(); if (!v) return; ongletActif().cats[ci].items.push(v); sauver(); afficher(); document.getElementById("ajout-" + ci).focus(); } function supprLigne(ci, ii) { const c = ongletActif().cats[ci]; if (confirm(`Supprimer "${c.items[ii]}" ?`)) { c.items.splice(ii, 1); sauver(); afficher(); } } function nouvelleCat() { const n = prompt("Nom de la catégorie ?"); if (!n || !n.trim()) return; ongletActif().cats.push({ cat: n.trim(), items: [] }); sauver(); afficher(); } function nouvelOnglet() { const n = prompt("Nom du nouvel onglet ?"); if (!n || !n.trim()) return; app.data.onglets.push({ nom: n.trim(), cats: [] }); app.actif = app.data.onglets.length - 1; sauver(); afficher(); } function renommerOnglet() { const o = ongletActif(); const n = prompt("Nouveau nom ?", o.nom); if (!n || !n.trim() || n === o.nom) return; const anc = o.nom, neuf = n.trim(), mig = {}; Object.keys(app.coches).forEach(k => { mig[k.startsWith(anc + "|") ? neuf + k.slice(anc.length) : k] = app.coches[k]; }); app.coches = mig; o.nom = neuf; sauver(); afficher(); } function supprOnglet() { if (app.data.onglets.length === 1) { alert("Il faut garder au moins un onglet."); return; } if (confirm(`Supprimer l'onglet "${ongletActif().nom}" et tout son contenu ?`)) { app.data.onglets.splice(app.actif, 1); app.actif = 0; sauver(); afficher(); } } function toutDecocher() { if (confirm("Décocher toute la liste pour un nouveau service ?")) { app.coches = {}; app.actif = 0; sauver(); afficher(); } } afficher(); </script> </body> </html>
