@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Checklist">
+<meta name="apple-mobile-web-app-title" content="Foodtruck">
+<link rel="apple-touch-icon" href="icon.png">
 <title>Brut Butcher - FOODTRUCK</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -90,6 +91,39 @@
   }
   .btn.ghost { background: transparent; color: #f2ede4; border: 2px solid #f2ede4; }
   .actions { display: flex; gap: 8px; margin-top: 24px; flex-wrap: wrap; }
+
+  /* Caisse */
+  .caisse-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 4px;
+    border-bottom: 1px solid #242932; font-size: 18px;
+  }
+  .caisse-row .lbl { flex: 1; letter-spacing: 1px; }
+  .caisse-row input {
+    width: 80px; background: #1b1f26; border: 1px solid #2a2f38; color: #f2ede4;
+    padding: 10px; font-family: inherit; font-size: 18px; text-align: center;
+  }
+  .caisse-row .sub-total { width: 90px; text-align: right; color: #8b919b; font-size: 16px; }
+  .caisse-row .sub-total.has { color: #f2ede4; }
+  .total-box {
+    border: 2px solid #f2ede4; padding: 14px; margin-top: 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 22px; letter-spacing: 3px; text-transform: uppercase;
+  }
+  .total-box strong { font-size: 28px; }
+
+  /* Mise en page PDF / impression */
+  .print-only { display: none; }
+  @media print {
+    body { background: #fff; color: #000; padding: 0; font-family: Arial, sans-serif; }
+    header, .tabs, main { display: none !important; }
+    .print-only { display: block; padding: 24px; }
+    .print-only h1 { font-size: 24px; margin: 0 0 4px; }
+    .print-only p { margin: 0 0 16px; color: #444; }
+    .print-only table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    .print-only th, .print-only td { border: 1px solid #000; padding: 8px; text-align: left; }
+    .print-only td.r, .print-only th.r { text-align: right; }
+    .print-only .tot { font-size: 18px; font-weight: bold; margin-top: 16px; text-align: right; }
+  }
 </style>
 </head>
 <body>
@@ -108,15 +142,18 @@
 <main>
   <div id="alert"></div>
   <div id="content"></div>
-  <div class="actions">
+  <div class="actions" id="actions">
     <button class="btn ghost" id="addCat">+ Catégorie</button>
     <button class="btn ghost" id="resetTab">Tout décocher</button>
     <button class="btn ghost" id="delTab">Supprimer l'onglet</button>
   </div>
 </main>
 
+<div class="print-only" id="printArea"></div>
+
 <script>
- const KEY = 'brutbutcher_checklist_v6';
+const KEY = 'brutbutcher_checklist_v7';
+const CAISSE_NAME = 'Caisse';
 
 const defaultData = {
   active: 0,
@@ -196,21 +233,39 @@ const defaultData = {
         { t: 'Comptage billet + pièce', c: false },
         { t: 'Mise en route des deux TPE', c: false }
       ]}
-    ]}
+    ]},
+    { name: CAISSE_NAME, cats: [], caisse: true }
   ]
 };
+
+const DENOMS = [
+  { label: '1 centime', v: 0.01 }, { label: '2 centimes', v: 0.02 },
+  { label: '5 centimes', v: 0.05 }, { label: '10 centimes', v: 0.10 },
+  { label: '20 centimes', v: 0.20 }, { label: '50 centimes', v: 0.50 },
+  { label: '1 €', v: 1 }, { label: '2 €', v: 2 },
+  { label: 'Billet 5 €', v: 5 }, { label: 'Billet 10 €', v: 10 },
+  { label: 'Billet 20 €', v: 20 }, { label: 'Billet 50 €', v: 50 },
+  { label: 'Billet 100 €', v: 100 }
+];
+
 let data;
 try { data = JSON.parse(localStorage.getItem(KEY)) || defaultData; }
 catch (e) { data = defaultData; }
+if (!data.caisseQty) data.caisseQty = {};
 
 function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
-function esc(s) { return s.replace(/[&<>"]/g, c => ({'&':'&','<':'<','>':'>','"':'"'}[c])); }
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"' }[c]));
+}
+function eur(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
 
-function render() {
-  if (data.active >= data.tabs.length) data.active = 0;
-  const tab = data.tabs[data.active];
+function caisseTotal() {
+  let tot = 0;
+  DENOMS.forEach((d, i) => { tot += (parseInt(data.caisseQty[i]) || 0) * d.v; });
+  return Math.round(tot * 100) / 100;
+}
 
-  // Onglets
+function renderTabs() {
   const tabsEl = document.getElementById('tabs');
   tabsEl.innerHTML = '';
   data.tabs.forEach((t, i) => {
@@ -219,7 +274,7 @@ function render() {
     b.textContent = t.name;
     b.onclick = () => { data.active = i; save(); render(); };
     b.ondblclick = () => {
-      const n = prompt('Renommer l\'onglet :', t.name);
+      const n = prompt("Renommer l'onglet :", t.name);
       if (n && n.trim()) { t.name = n.trim(); save(); render(); }
     };
     tabsEl.appendChild(b);
@@ -234,6 +289,82 @@ function render() {
     }
   };
   tabsEl.appendChild(add);
+}
+
+function renderCaisse() {
+  document.getElementById('alert').innerHTML = '';
+  document.getElementById('actions').style.display = 'none';
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="cat"><div class="cat-title"><h3>Comptage de la caisse</h3></div></div>';
+  const wrap = content.firstChild;
+
+  DENOMS.forEach((d, i) => {
+    const row = document.createElement('div');
+    row.className = 'caisse-row';
+    const q = parseInt(data.caisseQty[i]) || 0;
+    row.innerHTML =
+      '<span class="lbl">' + esc(d.label) + '</span>' +
+      '<input type="number" inputmode="numeric" min="0" placeholder="0" value="' + (q || '') + '">' +
+      '<span class="sub-total' + (q ? ' has' : '') + '">' + eur(q * d.v) + '</span>';
+    const inp = row.querySelector('input');
+    const subEl = row.querySelector('.sub-total');
+    inp.oninput = () => {
+      const val = Math.max(0, parseInt(inp.value) || 0);
+      data.caisseQty[i] = val;
+      subEl.textContent = eur(val * d.v);
+      subEl.className = 'sub-total' + (val ? ' has' : '');
+      document.getElementById('totalVal').textContent = eur(caisseTotal());
+      save();
+    };
+    wrap.appendChild(row);
+  });
+
+  const total = document.createElement('div');
+  total.className = 'total-box';
+  total.innerHTML = '<span>Total</span><strong id="totalVal">' + eur(caisseTotal()) + '</strong>';
+  content.appendChild(total);
+
+  const act = document.createElement('div');
+  act.className = 'actions';
+  act.innerHTML =
+    '<button class="btn" id="pdfBtn">Générer le PDF</button>' +
+    '<button class="btn ghost" id="clearCaisse">Remettre à zéro</button>';
+  content.appendChild(act);
+
+  document.getElementById('pdfBtn').onclick = generatePDF;
+  document.getElementById('clearCaisse').onclick = () => {
+    if (confirm('Remettre toute la caisse à zéro ?')) { data.caisseQty = {}; save(); render(); }
+  };
+}
+
+function generatePDF() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR') + ' à ' +
+    now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  let rows = '';
+  DENOMS.forEach((d, i) => {
+    const q = parseInt(data.caisseQty[i]) || 0;
+    if (q > 0) {
+      rows += '<tr><td>' + esc(d.label) + '</td><td class="r">' + q + '</td><td class="r">' + eur(q * d.v) + '</td></tr>';
+    }
+  });
+  if (!rows) rows = '<tr><td colspan="3">Aucune quantité saisie</td></tr>';
+  document.getElementById('printArea').innerHTML =
+    '<h1>Brut Butcher - Fond de caisse</h1>' +
+    '<p>Établi le ' + dateStr + '</p>' +
+    '<table><thead><tr><th>Pièce / Billet</th><th class="r">Quantité</th><th class="r">Montant</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>' +
+    '<div class="tot">TOTAL : ' + eur(caisseTotal()) + '</div>';
+  window.print();
+}
+
+function render() {
+  if (data.active >= data.tabs.length) data.active = 0;
+  const tab = data.tabs[data.active];
+  renderTabs();
+
+  if (tab.caisse) { renderCaisse(); return; }
+  document.getElementById('actions').style.display = '';
 
   // Résumé de ce qui manque
   const missing = [];
