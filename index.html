@@ -372,7 +372,7 @@ function saveInv() { localStorage.setItem(INV_KEY, JSON.stringify(inv)); }
 function saveCA() { localStorage.setItem(CA_KEY, JSON.stringify(caHist)); }
 
 function esc(s) {
-  return String(s).replace(/[&<>"]/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"' }[c]));
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": ''' }[c]));
 }
 function eur(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
 function num(x) { return parseFloat(x) || 0; }
@@ -772,9 +772,8 @@ function renderSuivi() {
       { name: 'degre1', label: 'Cuve 1 — degré', type: 'number', step: 'any', placeholder: 'Degré' },
       { name: 'polarite2', label: 'Cuve 2 — polarité', placeholder: 'Polarité' },
       { name: 'degre2', label: 'Cuve 2 — degré', type: 'number', step: 'any', placeholder: 'Degré' }
-    ], suivi.polarite, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Cuve 1 : polarité ' + escHtml(e.polarite1 || '—') +
-      ', degré ' + escHtml(e.degre1 || '—') +
-           ', degré ' + escHtml(e.degre1 || '—') + ' · Cuve 2 : polarité ' + escHtml(e.polarite2 || '—') + ', degré ' + escHtml(e.degre2 || '—')) +
+			    ], suivi.polarite, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Cuve 1 : polarité ' + escHtml(e.polarite1 || '—') +
+      ', degré ' + escHtml(e.degre1 || '—') + ' · Cuve 2 : polarité ' + escHtml(e.polarite2 || '—') + ', degré ' + escHtml(e.degre2 || '—')) +
     section('Températures frigos', 'formFrigos', [
       { name: 'date', label: 'Date', type: 'date', today: true, required: true },
       { name: 'frigo1', label: 'Frigo 1 — température', type: 'number', step: 'any', placeholder: '°C' },
