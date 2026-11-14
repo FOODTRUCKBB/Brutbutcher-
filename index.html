@@ -89,7 +89,10 @@
     content: ''; position: absolute; left: 8px; top: 2px; width: 7px; height: 14px;
     border: solid #14171c; border-width: 0 3px 3px 0; transform: rotate(45deg);
   }
-  .item.done span { color: #6b717b; text-decoration: line-through; }
+   .item.off span { color: #6b717b; font-style: italic; }
+  .off-label { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; font-size: 13px; color: #8b919b; cursor: pointer; }
+  .off-label input { width: 22px; height: 22px; accent-color: #d63a2f; }
+ .item.done span { color: #6b717b; text-decoration: line-through; }
   .del { background: none; border: none; color: #6b717b; font-size: 22px; padding: 4px 8px; cursor: pointer; }
 
   .add-row { display: flex; gap: 8px; margin-top: 10px; }
@@ -160,6 +163,9 @@
     .print-only th, .print-only td { border: 1px solid #000; padding: 8px; text-align: left; }
     .print-only td.r, .print-only th.r { text-align: right; }
     .print-only .tot { font-size: 18px; font-weight: bold; margin-top: 16px; text-align: right; }
+    .hottes-form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .hottes-form input { padding: 8px; border: 1px solid #d0d4da; border-radius: 6px; font-size: 14px; }
+  .hottes-form input[type="text"] { flex: 1 1 180px; } 
   }
 </style>
 </head>
@@ -806,9 +812,7 @@ function renderSuivi() {
       { name: 'frigo1', label: 'Frigo 1 — température', type: 'number', step: 'any', placeholder: '°C' },
       { name: 'frigo2', label: 'Frigo 2 — température', type: 'number', step: 'any', placeholder: '°C' }
     ], suivi.frigos, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Frigo 1 : ' + escHtml(e.frigo1 || '—') + ' °C · Frigo 2 : ' + escHtml(e.frigo2 || '—') + ' °C') +
-    section('Nettoyage des hottes', 'formHottes', [
-      { name: 'date', label: 'Date du nettoyage', type: 'date', today: true, required: true }
-    ], suivi.hottes, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong>') +
+  
     '<div class="actions"><button class="btn ghost" id="generateSuiviPDF">Générer PDF</button></div>';
 
   const bindForm = (id, key, names) => {
@@ -825,7 +829,7 @@ function renderSuivi() {
   bindForm('formVidange', 'vidanges', ['date', 'cuve1', 'cuve2', 'nettoyageDate']);
   bindForm('formPolarite', 'polarite', ['date', 'polarite1', 'degre1', 'polarite2', 'degre2']);
   bindForm('formFrigos', 'frigos', ['date', 'frigo1', 'frigo2']);
-  bindForm('formHottes', 'hottes', ['date']);
+  
   content.querySelectorAll('[data-del]').forEach(button => {
     button.onclick = () => {
       if (!editing) return;
@@ -849,7 +853,7 @@ function generateSuiviPDF() {
   const rowsVidange = sortedEntries(suivi.vidanges).map(e => [displayDate(e.date), e.cuve1, e.cuve2, displayDate(e.nettoyageDate)]);
   const rowsPolarite = sortedEntries(suivi.polarite).map(e => [displayDate(e.date), e.polarite1, e.degre1, e.polarite2, e.degre2]);
   const rowsFrigos = sortedEntries(suivi.frigos).map(e => [displayDate(e.date), e.frigo1, e.frigo2]);
-  const rowsHottes = sortedEntries(suivi.hottes).map(e => [displayDate(e.date)]);
+ 
   const w = window.open('', '_blank');
   if (!w) { alert('Autorisez les fenêtres pop-up pour générer le PDF.'); return; }
   w.document.open();
@@ -857,7 +861,7 @@ function generateSuiviPDF() {
     table('Vidange huile', ['Date', 'Cuve 1', 'Cuve 2', 'Nettoyage — date'], rowsVidange) +
     table('Polarité & degré d’huile', ['Date', 'Cuve 1 — polarité', 'Cuve 1 — degré', 'Cuve 2 — polarité', 'Cuve 2 — degré'], rowsPolarite) +
     table('Températures frigos', ['Date', 'Frigo 1 (°C)', 'Frigo 2 (°C)'], rowsFrigos) +
-    table('Nettoyage des hottes', ['Date du nettoyage'], rowsHottes) +
+    
     '<script>window.onload=function(){window.print();};<\/script></body></html>');
   w.document.close();
 }
@@ -874,7 +878,7 @@ function render() {
   document.getElementById('actions').style.display = '';
 
   const missing = [];
-  tab.cats.forEach(cat => cat.items.forEach(it => { if (!it.c) missing.push({ cat: cat.name, t: it.t }); }));
+  tab.cats.forEach(cat => cat.items.forEach(it => { if (!it.c && !it.off) missing.push({ cat: cat.name, t: it.t }); }));
   const alertEl = document.getElementById('alert');
   if (tab.cats.length === 0) {
     alertEl.innerHTML = '';
@@ -893,17 +897,19 @@ function render() {
       (editing ? 'Aucune catégorie. Appuyez sur « + Catégorie ».' : 'Aucune catégorie.') + '</p>';
   }
   tab.cats.forEach((cat, ci) => {
-    const done = cat.items.filter(i => i.c).length;
+    const done = cat.items.filter(i => i.c || i.off).length;
     const div = document.createElement('div');
     div.className = 'cat';
     div.innerHTML =
       '<div class="cat-title"><h3>' + esc(cat.name) + '</h3><span class="count">' + done + '/' + cat.items.length + '</span></div>';
     cat.items.forEach((it, ii) => {
       const row = document.createElement('div');
-      row.className = 'item' + (it.c ? ' done' : '');
-      row.innerHTML = '<label><input type="checkbox"' + (it.c ? ' checked' : '') + '><span>' + esc(it.t) + '</span></label>' +
+           row.className = 'item' + (it.c ? ' done' : '') + (it.off ? ' off' : '');
+           row.innerHTML = '<label><input type="checkbox"' + (it.c ? ' checked' : '') + '><span>' + esc(it.t) + '</span></label>' +
+        '<label class="off-label"><input type="checkbox" class="off-cb"' + (it.off ? ' checked' : '') + '><small>Éteint</small></label>' +
         '<button class="del edit-only" aria-label="Supprimer">×</button>';
-      row.querySelector('input').onchange = e => { it.c = e.target.checked; save(); render(); };
+      row.querySelector('input:not(.off-cb)').onchange = e => { it.c = e.target.checked; save(); render(); };
+      row.querySelector('.off-cb').onchange = e => { it.off = e.target.checked; save(); render(); };
       row.querySelector('.del').onclick = () => { cat.items.splice(ii, 1); save(); render(); };
       div.appendChild(row);
     });
@@ -913,7 +919,7 @@ function render() {
     const inp = form.querySelector('input');
     const addItem = () => {
       const v = inp.value.trim();
-      if (v) { cat.items.push({ t: v, c: false }); save(); render(); }
+      if (v) { cat.items.push({ t: v, c: false, off: false }); save(); render(); }
     };
     form.querySelector('button').onclick = addItem;
     inp.onkeydown = e => { if (e.key === 'Enter') addItem(); };
@@ -921,7 +927,6 @@ function render() {
     content.appendChild(div);
   });
 }
-
 document.getElementById('addCat').onclick = () => {
   const n = prompt('Nom de la catégorie :');
   if (n && n.trim()) { data.tabs[data.active].cats.push({ name: n.trim(), items: [] }); save(); render(); }
@@ -938,7 +943,11 @@ document.getElementById('delTab').onclick = () => {
     data.tabs.splice(data.active, 1); data.active = 0; save(); render();
   }
 };
-
+if (!data.tabs.some(t => t.hottes)) {
+  const suiviIndex = data.tabs.findIndex(t => t.suivi || t.name === SUIVI_NAME);
+  data.tabs.splice(suiviIndex < 0 ? data.tabs.length : suiviIndex + 1, 0, { name: 'Hottes', cats: [], hottes: true });
+  save();
+}
 updateLockUI();
 render();
 </script>
