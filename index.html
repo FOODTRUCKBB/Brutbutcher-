@@ -845,7 +845,44 @@ function renderSuivi() {
   });
   document.getElementById('generateSuiviPDF').onclick = generateSuiviPDF;
 }
-function generateSuiviPDF() {
+function renderHottes() {
+  document.getElementById('alert').innerHTML = '';
+  document.getElementById('actions').style.display = 'none';
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+  const block = document.createElement('section');
+  block.className = 'suivi-section';
+  block.innerHTML =
+    '<h2 class="section-title">Nettoyage des hottes</h2>' +
+    '<form class="suivi-form" id="formHottes">' +
+    '<label>Date<input name="date" type="date" value="' + dateToday() + '" required></label>' +
+    '<label>Note<input name="note" type="text" placeholder="Observation"></label>' +
+    '<button class="btn" type="submit">Ajouter à l’historique</button></form>' +
+    (suivi.hottes.length
+      ? sortedEntries(suivi.hottes).map((e, index) =>
+          '<div class="suivi-entry"><strong>' + htmlEscape(displayDate(e.date)) + '</strong> — ' + htmlEscape(e.note || '—') +
+          (editing ? '<button class="del edit-only" data-hdel="' + index + '">×</button>' : '') + '</div>').join('')
+      : '<p style="color:#8b919b">Aucun historique enregistré.</p>');
+  content.appendChild(block);
+
+  document.getElementById('formHottes').onsubmit = e => {
+    e.preventDefault();
+    const f = e.target;
+    const date = f.elements.date.value;
+    if (!date) return;
+    suivi.hottes.unshift({ date, note: f.elements.note.value.trim() });
+    saveSuivi(); renderHottes();
+  };
+  content.querySelectorAll('[data-hdel]').forEach(btn => {
+    btn.onclick = () => {
+      const ordered = sortedEntries(suivi.hottes);
+      const target = ordered[Number(btn.dataset.hdel)];
+      suivi.hottes.splice(suivi.hottes.indexOf(target), 1);
+      saveSuivi(); renderHottes();
+    };
+  });
+}
+ function generateSuiviPDF() {
   const table = (title, headers, rows) => '<h2>' + htmlEscape(title) + '</h2><table><thead><tr>' +
     headers.map(h => '<th>' + htmlEscape(h) + '</th>').join('') + '</tr></thead><tbody>' +
     (rows.length ? rows.map(row => '<tr>' + row.map(v => '<td>' + htmlEscape(v || '—') + '</td>').join('') + '</tr>').join('') :
@@ -875,8 +912,11 @@ function render() {
   if (tab.inventaire) { renderInventaire(); return; }
   if (tab.ca) { renderCA(); return; }
   if (tab.suivi || tab.name === SUIVI_NAME) { renderSuivi(); return; }
-  document.getElementById('actions').style.display = '';
+  renderChecklist();
 }
+ function renderChecklist() {
+  const tab = data.tabs[data.active];
+  document.getElementById('actions').style.display = '';
   const missing = [];
   tab.cats.forEach(cat => cat.items.forEach(it => { if (!it.c && !it.off) missing.push({ cat: cat.name, t: it.t }); }));
   const alertEl = document.getElementById('alert');
@@ -889,13 +929,11 @@ function render() {
       missing.map(m => '<li>' + esc(m.t) + ' <small>— ' + esc(m.cat) + '</small></li>').join('') +
       '</ul></div>';
   }
-
   const content = document.getElementById('content');
   content.innerHTML = '';
   if (tab.cats.length === 0) {
     content.innerHTML = '<p style="color:#8b919b;text-align:center;margin-top:30px">' +
       (editing ? 'Aucune catégorie. Appuyez sur « + Catégorie ».' : 'Aucune catégorie.') + '</p>';
-  }
   tab.cats.forEach((cat, ci) => {
     const done = cat.items.filter(i => i.c || i.off).length;
     const div = document.createElement('div');
@@ -904,8 +942,8 @@ function render() {
       '<div class="cat-title"><h3>' + esc(cat.name) + '</h3><span class="count">' + done + '/' + cat.items.length + '</span></div>';
     cat.items.forEach((it, ii) => {
       const row = document.createElement('div');
-           row.className = 'item' + (it.c ? ' done' : '') + (it.off ? ' off' : '');
-           row.innerHTML = '<label><input type="checkbox"' + (it.c ? ' checked' : '') + '><span>' + esc(it.t) + '</span></label>' +
+      row.className = 'item' + (it.c ? ' done' : '') + (it.off ? ' off' : '');
+      row.innerHTML = '<label><input type="checkbox"' + (it.c ? ' checked' : '') + '><span>' + esc(it.t) + '</span></label>' +
         '<label class="off-label"><input type="checkbox" class="off-cb"' + (it.off ? ' checked' : '') + '><small>Éteint</small></label>' +
         '<button class="del edit-only" aria-label="Supprimer">×</button>';
       row.querySelector('input:not(.off-cb)').onchange = e => { it.c = e.target.checked; save(); render(); };
@@ -926,31 +964,30 @@ function render() {
     div.appendChild(form);
     content.appendChild(div);
   });
-}
+}  
 document.getElementById('addCat').onclick = () => {
   const n = prompt('Nom de la catégorie :');
-  if (n && n.trim()) { data.tabs[data.active].cats.push({ name: n.trim(), items: [] }); save(); render(); }
+   if (n && n.trim()) { data.tabs[data.active].cats.push({ name: n.trim(), items: [] }); save(); render(); }
 };
+
 document.getElementById('resetTab').onclick = () => {
   if (confirm('Tout décocher dans cet onglet ?')) {
     data.tabs[data.active].cats.forEach(c => c.items.forEach(i => i.c = false));
     save(); render();
   }
 };
+
 document.getElementById('delTab').onclick = () => {
   if (data.tabs.length === 1) { alert('Il faut garder au moins un onglet.'); return; }
   if (confirm('Supprimer cet onglet ?')) {
     data.tabs.splice(data.active, 1); data.active = 0; save(); render();
   }
 };
-if (!data.tabs.some(t => t.hottes)) {
-  const suiviIndex = data.tabs.findIndex(t => t.suivi || t.name === SUIVI_NAME);
-  data.tabs.splice(suiviIndex < 0 ? data.tabs.length : suiviIndex + 1, 0, { name: 'Hottes', cats: [], hottes: true });
-  save();
-}
+
+/* ===== Démarrage ===== */
 updateLockUI();
-render();
+render(); 
 </script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"8607d2a720d14b038279025b2b5a82e5","spa":2}' crossorigin="anonymous"></script>
+<script type="module" src="https://static.cloudflareinsights.com/..."></script>
 </body>
 </html>
