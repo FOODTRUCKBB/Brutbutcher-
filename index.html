@@ -205,6 +205,7 @@ const SUIVI_KEY = 'brutbutcher_suivi_v1';
 const SUIVI_NAME = 'Suivi Huile & Frigos';
 const CAISSE_NAME = 'Caisse';
 const INVENTAIRE_NAME = 'Inventaire';
+ const FORMULES_NAME = 'CA JOUR';
 const CA_NAME = 'CA';
 let editing = false;
 
@@ -293,6 +294,7 @@ const defaultData = {
     ]},
     { name: CAISSE_NAME, cats: [], caisse: true },
     { name: SUIVI_NAME, cats: [], suivi: true },
+    { name: FORMULES_NAME, cats: [], formules: true },
     { name: CA_NAME, cats: [], ca: true }
   ]
 };
@@ -364,6 +366,16 @@ function ensureChecklistItem(tabName, categoryName, label) {
 ensureChecklistItem('Équipement', 'Friteuse', 'Huile 10 kilos');
 ensureChecklistItem('Formulaire', 'Open caisse', 'Rouleau TPE');
 ensureChecklistItem('Formulaire', 'Open caisse', 'Chargeur TPE');
+ if (!data.tabs.some(t => t.formules || t.name === FORMULES_NAME)) {
+  const caIndex = data.tabs.findIndex(t => t.ca || t.name === CA_NAME);
+  data.tabs.splice(caIndex < 0 ? data.tabs.length : caIndex, 0, { name: FORMULES_NAME, cats: [], formules: true });
+  save();
+}
+const formulesTab = data.tabs.find(t => t.formules);
+if (formulesTab && formulesTab.name !== FORMULES_NAME) {
+  formulesTab.name = FORMULES_NAME;
+  save();
+}
 if (!data.tabs.some(t => t.suivi || t.name === SUIVI_NAME)) {
   const caIndex = data.tabs.findIndex(t => t.ca || t.name === CA_NAME);
   data.tabs.splice(caIndex < 0 ? data.tabs.length : caIndex, 0, { name: SUIVI_NAME, cats: [], suivi: true });
@@ -485,27 +497,6 @@ function renderCaisse() {
   total.className = 'total-box';
   total.innerHTML = '<span>Total</span><strong id="totalVal">' + eur(caisseTotal()) + '</strong>';
   content.appendChild(total);
-
-  const offTitle = document.createElement('div');
-  offTitle.className = 'section-title';
-  offTitle.textContent = 'Offerts (hors CA)';
-  content.appendChild(offTitle);
-
-  OFFERT_ITEMS.forEach(o => {
-    const row = document.createElement('div');
-    row.className = 'caisse-row';
-    const q = offertQty(o.id);
-    row.innerHTML =
-      '<span class="lbl">' + esc(o.label) + '</span>' +
-      '<input type="number" inputmode="numeric" min="0" placeholder="0" value="' + (q || '') + '">';
-    const inp = row.querySelector('input');
-    inp.oninput = () => {
-      data.caisseOfferts[o.id] = Math.max(0, parseInt(inp.value) || 0);
-      save();
-    };
-    content.appendChild(row);
-  });
-
   const act = document.createElement('div');
   act.className = 'actions';
   act.innerHTML =
@@ -516,9 +507,8 @@ function renderCaisse() {
   document.getElementById('pdfBtn').onclick = generateCaissePDF;
   document.getElementById('clearCaisse').onclick = () => {
     if (confirm('Remettre toute la caisse à zéro ?')) {
-      data.caisseQty = {};
-      data.caisseOfferts = {};
-      save(); render();
+          data.caisseQty = {};
+      save(); render(); 
     }
   };
 }
@@ -740,12 +730,6 @@ function generateCaissePDF() {
       rows += '<tr><td>' + esc(d.label) + '</td><td class="r">' + q + '</td><td class="r">' + eur(q * d.v) + '</td></tr>';
     }
   });
-  OFFERT_ITEMS.forEach(o => {
-    const q = offertQty(o.id);
-    if (q > 0) {
-      rows += '<tr><td>' + esc(o.label) + '</td><td class="r">' + q + '</td><td class="r">Hors CA</td></tr>';
-    }
-  });
   if (!rows) rows = '<tr><td colspan="3">Aucune quantité saisie</td></tr>';
   document.getElementById('printArea').innerHTML =
     '<h1>Brut Butcher - Fond de caisse</h1>' +
@@ -959,6 +943,84 @@ function generateCAPDF() {
     '</tbody></table><div class="tot">TOTAL : ' + eur(total) + '</div><script>window.onload=function(){window.print();};<\/script></body></html>');
   w.document.close();
 } 
+ function renderFormules() {
+  document.getElementById('alert').innerHTML = '';
+  document.getElementById('actions').style.display = 'none';
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  const h = document.createElement('div');
+  h.className = 'section-title';
+  h.textContent = 'CA JOUR';
+  content.appendChild(h);
+
+  const vendTitle = document.createElement('div');
+  vendTitle.className = 'section-title';
+  vendTitle.textContent = 'Formules vendues';
+  content.appendChild(vendTitle);
+
+  CRA_ITEMS.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'caisse-row';
+    const q = parseInt(inv.cra[item.id]) || 0;
+    row.innerHTML =
+      '<span class="lbl">' + esc(item.label) + ' (' + item.prix + ' €)</span>' +
+      '<input type="number" inputmode="numeric" min="0" placeholder="0" value="' + (q || '') + '">';
+    row.querySelector('input').oninput = e => {
+      inv.cra[item.id] = Math.max(0, parseInt(e.target.value) || 0);
+      saveInv();
+    };
+    content.appendChild(row);
+  });
+
+  const offTitle = document.createElement('div');
+  offTitle.className = 'section-title';
+  offTitle.textContent = 'Formules offertes';
+  content.appendChild(offTitle);
+
+  OFFERT_ITEMS.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'caisse-row';
+    const q = offertQty(item.id);
+    row.innerHTML =
+      '<span class="lbl">' + esc(item.label) + '</span>' +
+      '<input type="number" inputmode="numeric" min="0" placeholder="0" value="' + (q || '') + '">';
+    row.querySelector('input').oninput = e => {
+      data.caisseOfferts[item.id] = Math.max(0, parseInt(e.target.value) || 0);
+      save();
+    };
+    content.appendChild(row);
+  });
+
+  const act = document.createElement('div');
+  act.className = 'actions';
+  act.innerHTML = '<button class="btn" id="pdfFormules">Générer PDF</button>';
+  content.appendChild(act);
+  document.getElementById('pdfFormules').onclick = generateFormulesPDF;
+}
+
+function generateFormulesPDF() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR') + ' à ' +
+    now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  let rowsV = '', rowsO = '';
+  CRA_ITEMS.forEach(c => {
+    const q = parseInt(inv.cra[c.id]) || 0;
+    rowsV += '<tr><td>' + esc(c.label) + '</td><td class="r">' + q + '</td><td class="r">' + eur(q * c.prix) + '</td></tr>';
+  });
+  OFFERT_ITEMS.forEach(o => {
+    const q = offertQty(o.id);
+    rowsO += '<tr><td>' + esc(o.label) + '</td><td class="r">' + q + '</td><td class="r">Hors CA</td></tr>';
+  });
+  document.getElementById('printArea').innerHTML =
+    '<h1>Brut Butcher - CA JOUR</h1>' +
+    '<p>Édité le ' + dateStr + '</p>' +
+    '<h2>Formules vendues</h2>' +
+    '<table><thead><tr><th>Formule</th><th class="r">Quantité</th><th class="r">Montant</th></tr></thead><tbody>' + rowsV + '</tbody></table>' +
+    '<h2>Formules offertes</h2>' +
+    '<table><thead><tr><th>Formule</th><th class="r">Quantité</th><th class="r">Montant</th></tr></thead><tbody>' + rowsO + '</tbody></table>';
+  window.print();
+}
 function render() {
   if (data.active >= data.tabs.length) data.active = 0;
   const tab = data.tabs[data.active];
@@ -967,6 +1029,7 @@ function render() {
   if (tab.hottes) { renderHottes(); return; }
   if (tab.caisse) { renderCaisse(); return; }
   if (tab.inventaire) { renderInventaire(); return; }
+   if (tab.formules || tab.name === FORMULES_NAME) { renderFormules(); return; }
   if (tab.ca) { renderCA(); return; }
   if (tab.suivi || tab.name === SUIVI_NAME) { renderSuivi(); return; }
   renderChecklist();
