@@ -964,11 +964,9 @@ function render() {
     cat.items.forEach((it, ii) => {
       const row = document.createElement('div');
       row.className = 'item' + (it.c ? ' done' : '') + (it.off ? ' off' : '');
-      row.innerHTML = '<label><input type="checkbox"' + (it.c ? ' checked' : '') + '><span>' + esc(it.t) + '</span></label>' +
-        '<label class="off-label"><input type="checkbox" class="off-cb"' + (it.off ? ' checked' : '') + '><small>Éteint</small></label>' +
+           row.innerHTML = '<label><input type="checkbox"' + (it.c ? ' checked' : '') + '><span>' + esc(it.t) + '</span></label>' +
         '<button class="del edit-only" aria-label="Supprimer">×</button>';
       row.querySelector('input:not(.off-cb)').onchange = e => { it.c = e.target.checked; save(); render(); };
-      row.querySelector('.off-cb').onchange = e => { it.off = e.target.checked; save(); render(); };
       row.querySelector('.del').onclick = () => { cat.items.splice(ii, 1); save(); render(); };
       div.appendChild(row);
     });
