@@ -776,13 +776,17 @@ function renderSuivi() {
   document.getElementById('actions').style.display = 'none';
   const content = document.getElementById('content');
   const escHtml = htmlEscape;
-  const section = (title, id, fields, entries, format) => {
+   const section = (title, id, fields, entries, format) => {
     let html = '<section class="suivi-section"><h2 class="section-title">' + title + '</h2>' +
       '<form class="suivi-form" id="' + id + '">';
-    fields.forEach(f => { html += '<label>' + f.label + '<input name="' + f.name + '" type="' + (f.type || 'text') + '"' +
-      (f.step ? ' step="' + f.step + '"' : '') + (f.min != null ? ' min="' + f.min + '"' : '') +
-      (f.required ? ' required' : '') + (f.type === 'date' && f.today ? ' value="' + dateToday() + '"' : '') +
-      ' placeholder="' + (f.placeholder || '') + '"></label>'; });
+    fields.forEach(f => {
+      html += '<label>' + f.label + '<input name="' + f.name + '" type="' + (f.type || 'text') + '"' +
+        (f.step ? ' step="' + f.step + '"' : '') +
+        (f.required ? ' required' : '') +
+        (f.type === 'date' && f.today ? ' value="' + dateToday() + '"' : '') +
+        ' placeholder="' + (f.placeholder || '') + '"></label>';
+    });
+    html += '<label class="off-label" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" name="eteint"><span>Éteint</span></label>';
     html += '<button class="btn" type="submit">Ajouter à l’historique</button></form>';
     const ordered = sortedEntries(entries);
     html += ordered.length ? ordered.map((entry, index) => '<div class="suivi-entry">' + format(entry) +
@@ -797,30 +801,33 @@ function renderSuivi() {
       { name: 'cuve1', label: 'Cuve 1', placeholder: 'Note / statut' },
       { name: 'cuve2', label: 'Cuve 2', placeholder: 'Note / statut' },
       { name: 'nettoyageDate', label: 'Date du nettoyage', type: 'date' }
-    ], suivi.vidanges, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Cuve 1 : ' + escHtml(e.cuve1 || '—') +
-      ' · Cuve 2 : ' + escHtml(e.cuve2 || '—') + ' · Nettoyage : ' + escHtml(displayDate(e.nettoyageDate))) +
+        ], suivi.vidanges, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong>' +
+      (e.eteint ? ' — <em>ÉTEINT</em>' : ' — Cuve 1 : ' + escHtml(e.cuve1 || '—') +
+      ' · Cuve 2 : ' + escHtml(e.cuve2 || '—') + ' · Nettoyage : ' + escHtml(displayDate(e.nettoyageDate)))) +
     section('Polarité & degré d’huile', 'formPolarite', [
       { name: 'date', label: 'Date', type: 'date', today: true, required: true },
       { name: 'polarite1', label: 'Cuve 1 — polarité', placeholder: 'Polarité' },
       { name: 'degre1', label: 'Cuve 1 — degré', type: 'number', step: 'any', placeholder: 'Degré' },
       { name: 'polarite2', label: 'Cuve 2 — polarité', placeholder: 'Polarité' },
       { name: 'degre2', label: 'Cuve 2 — degré', type: 'number', step: 'any', placeholder: 'Degré' }
-    ], suivi.polarite, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Cuve 1 : polarité ' + escHtml(e.polarite1 || '—') +
-      ', degré ' + escHtml(e.degre1 || '—') + ' · Cuve 2 : polarité ' + escHtml(e.polarite2 || '—') + ', degré ' + escHtml(e.degre2 || '—')) +
+       ], suivi.polarite, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong>' +
+      (e.eteint ? ' — <em>ÉTEINT</em>' : ' — Cuve 1 : polarité ' + escHtml(e.polarite1 || '—') +
+      ', degré ' + escHtml(e.degre1 || '—') + ' · Cuve 2 : polarité ' + escHtml(e.polarite2 || '—') + ', degré ' + escHtml(e.degre2 || '—'))) +
     section('Températures frigos', 'formFrigos', [
       { name: 'date', label: 'Date', type: 'date', today: true, required: true },
       { name: 'frigo1', label: 'Frigo 1 — température', type: 'number', step: 'any', placeholder: '°C' },
       { name: 'frigo2', label: 'Frigo 2 — température', type: 'number', step: 'any', placeholder: '°C' }
-    ], suivi.frigos, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong> — Frigo 1 : ' + escHtml(e.frigo1 || '—') + ' °C · Frigo 2 : ' + escHtml(e.frigo2 || '—') + ' °C') +
-  
+       ], suivi.frigos, e => '<strong>' + escHtml(displayDate(e.date)) + '</strong>' +
+      (e.eteint ? ' — <em>ÉTEINT</em>' : ' — Frigo 1 : ' + escHtml(e.frigo1 || '—') + ' °C · Frigo 2 : ' + escHtml(e.frigo2 || '—') + ' °C')) +
     '<div class="actions"><button class="btn ghost" id="generateSuiviPDF">Générer PDF</button></div>';
 
-  const bindForm = (id, key, names) => {
+    const bindForm = (id, key, names) => {
     const form = document.getElementById(id);
     form.onsubmit = event => {
       event.preventDefault();
       const entry = {};
       names.forEach(name => { entry[name] = form.elements[name].value.trim(); });
+      entry.eteint = form.elements.eteint.checked;
       if (!entry.date) return;
       suivi[key].unshift(entry);
       saveSuivi(); renderSuivi();
