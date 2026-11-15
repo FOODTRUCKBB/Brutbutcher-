@@ -932,8 +932,9 @@ function render() {
   const content = document.getElementById('content');
   content.innerHTML = '';
   if (tab.cats.length === 0) {
-    content.innerHTML = '<p style="color:#8b919b;text-align:center;margin-top:30px">' +
+       content.innerHTML = '<p style="color:#8b919b;text-align:center;margin-top:30px">' +
       (editing ? 'Aucune catégorie. Appuyez sur « + Catégorie ».' : 'Aucune catégorie.') + '</p>';
+  }
   tab.cats.forEach((cat, ci) => {
     const done = cat.items.filter(i => i.c || i.off).length;
     const div = document.createElement('div');
@@ -969,7 +970,6 @@ document.getElementById('addCat').onclick = () => {
   const n = prompt('Nom de la catégorie :');
    if (n && n.trim()) { data.tabs[data.active].cats.push({ name: n.trim(), items: [] }); save(); render(); }
 };
-
 document.getElementById('resetTab').onclick = () => {
   if (confirm('Tout décocher dans cet onglet ?')) {
     data.tabs[data.active].cats.forEach(c => c.items.forEach(i => i.c = false));
