@@ -722,6 +722,11 @@ function renderCA() {
       });
     });
   });
+   const pdfWrap = document.createElement('div');
+  pdfWrap.className = 'actions';
+  pdfWrap.innerHTML = '<button class="btn ghost" id="generateCAPDF">Générer PDF</button>';
+  content.appendChild(pdfWrap);
+  document.getElementById('generateCAPDF').onclick = generateCAPDF;
 }
 
 function generateCaissePDF() {
@@ -883,7 +888,11 @@ function renderHottes() {
           '<div class="suivi-entry"><strong>' + htmlEscape(displayDate(e.date)) + '</strong> — ' + htmlEscape(e.note || '—') +
           (editing ? '<button class="del edit-only" data-hdel="' + index + '">×</button>' : '') + '</div>').join('')
       : '<p style="color:#8b919b">Aucun historique enregistré.</p>');
-  content.appendChild(block);
+    const pdfBtn = document.createElement('div');
+  pdfBtn.className = 'actions';
+  pdfBtn.innerHTML = '<button class="btn ghost" id="generateHottesPDF">Générer PDF</button>';
+  content.appendChild(pdfBtn);
+ content.appendChild(block);
 
   document.getElementById('formHottes').onsubmit = e => {
     e.preventDefault();
@@ -901,6 +910,7 @@ function renderHottes() {
       saveSuivi(); renderHottes();
     };
   });
+  document.getElementById('generateHottesPDF').onclick = generateHottesPDF; 
 }
  function generateSuiviPDF() {
   const table = (title, headers, rows) => '<h2>' + htmlEscape(title) + '</h2><table><thead><tr>' +
@@ -922,6 +932,29 @@ function renderHottes() {
     '<script>window.onload=function(){window.print();};<\/script></body></html>');
   w.document.close();
 }
+ function generateHottesPDF() {
+  const rows = sortedEntries(suivi.hottes).map(e => [displayDate(e.date), e.note]);
+  const w = window.open('', '_blank');
+  if (!w) { alert('Autorisez les fenêtres pop-up pour générer le PDF.'); return; }
+  w.document.open();
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Nettoyage des hottes</title><style>body{font:14px Arial,sans-serif;margin:24px;color:#111}h1{font-size:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:7px;text-align:left}th{background:#eee}@media print{body{margin:12mm}}</style></head><body><h1>Nettoyage des hottes</h1><table><thead><tr><th>Date</th><th>Note</th></tr></thead><tbody>' +
+    (rows.length ? rows.map(r => '<tr><td>' + htmlEscape(r[0]) + '</td><td>' + htmlEscape(r[1] || '—') + '</td></tr>').join('') :
+      '<tr><td colspan="2">Aucune donnée enregistrée.</td></tr>') +
+    '</tbody></table><script>window.onload=function(){window.print();};<\/script></body></html>');
+  w.document.close();
+}
+function generateCAPDF() {
+  const rows = sortedEntries(caHist).map(e => [displayDate(e.date), e.nom, eur(num(e.ca))]);
+  const total = caHist.reduce((s, e) => s + num(e.ca), 0);
+  const w = window.open('', '_blank');
+  if (!w) { alert('Autorisez les fenêtres pop-up pour générer le PDF.'); return; }
+  w.document.open();
+  w.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Chiffre d\'affaires</title><style>body{font:14px Arial,sans-serif;margin:24px;color:#111}h1{font-size:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #555;padding:7px;text-align:left}th{background:#eee}.tot{font-size:18px;font-weight:bold;margin-top:16px;text-align:right}@media print{body{margin:12mm}}</style></head><body><h1>Chiffre d\'affaires</h1><table><thead><tr><th>Date</th><th>Événement</th><th>CA</th></tr></thead><tbody>' +
+    (rows.length ? rows.map(r => '<tr><td>' + htmlEscape(r[0]) + '</td><td>' + htmlEscape(r[1]) + '</td><td>' + r[2] + '</td></tr>').join('') :
+      '<tr><td colspan="3">Aucun événement enregistré.</td></tr>') +
+    '</tbody></table><div class="tot">TOTAL : ' + eur(total) + '</div><script>window.onload=function(){window.print();};<\/script></body></html>');
+  w.document.close();
+} 
 function render() {
   if (data.active >= data.tabs.length) data.active = 0;
   const tab = data.tabs[data.active];
