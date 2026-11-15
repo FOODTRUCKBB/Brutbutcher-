@@ -835,7 +835,11 @@ function renderSuivi() {
       (e.eteint1 ? 'Frigo 1 : <em>ÉTEINT</em>' : 'Frigo 1 : ' + escHtml(e.frigo1 || '—') + ' °C') + ' · ' +
       (e.eteint2 ? 'Frigo 2 : <em>ÉTEINT</em>' : 'Frigo 2 : ' + escHtml(e.frigo2 || '—') + ' °C'))
     '<div class="actions"><button class="btn ghost" id="generateSuiviPDF">Générer PDF</button></div>';
-
+  const pdfWrap = document.createElement('div');
+  pdfWrap.className = 'actions';
+  pdfWrap.innerHTML = '<button class="btn ghost" id="generateSuiviPDF">Générer PDF</button>';
+  content.appendChild(pdfWrap);
+  document.getElementById('generateSuiviPDF').onclick = generateSuiviPDF;
       const bindForm = (id, key, names) => {
     const form = document.getElementById(id);
     form.onsubmit = event => {
