@@ -865,18 +865,18 @@ function generateSuiviPDF() {
     '<script>window.onload=function(){window.print();};<\/script></body></html>');
   w.document.close();
 }
-
 function render() {
   if (data.active >= data.tabs.length) data.active = 0;
   const tab = data.tabs[data.active];
   renderTabs();
 
+  if (tab.hottes) { renderHottes(); return; }
   if (tab.caisse) { renderCaisse(); return; }
   if (tab.inventaire) { renderInventaire(); return; }
   if (tab.ca) { renderCA(); return; }
   if (tab.suivi || tab.name === SUIVI_NAME) { renderSuivi(); return; }
   document.getElementById('actions').style.display = '';
-
+}
   const missing = [];
   tab.cats.forEach(cat => cat.items.forEach(it => { if (!it.c && !it.off) missing.push({ cat: cat.name, t: it.t }); }));
   const alertEl = document.getElementById('alert');
